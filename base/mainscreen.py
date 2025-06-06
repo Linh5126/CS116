@@ -1,3 +1,5 @@
+import os
+os.environ["SDL_VIDEODRIVER"] = "windib"
 import pygame
 import sys
 from agent import train

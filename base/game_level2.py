@@ -1,3 +1,5 @@
+import os
+os.environ["SDL_VIDEODRIVER"] = "windib"
 import pygame
 import math
 from enum import Enum
@@ -6,6 +8,7 @@ import numpy as np
 from pytmx.util_pygame import load_pygame
 from player import Player
 from enemy import Enemy
+import cv2
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
@@ -213,7 +216,8 @@ class Level2AI:
         
         # 2. move
         self._move(action) # update the head
-        self.snake.insert(0, self.head)
+        self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
+        self.snake.insert(0, Point(self.head.x, self.head.y))
         
         # 3. check if game over
         reward = 0
@@ -229,7 +233,7 @@ class Level2AI:
         if food_collide:
             self.score += 1
             reward = 20
-            if self.score==1:
+            if self.score == 1:
                 self._place_food()
             elif self.score == 2:
                 self._place_food2()
@@ -239,6 +243,10 @@ class Level2AI:
                 self._place_food4()
             elif self.score == 5:
                 self._place_food5()
+            elif self.score >= 6:
+                game_over = True
+                reward += 100
+                reward = 100/math.sqrt((self.food.x  - self.head.x)**2 + (self.food.y - self.head.y)**2)  
             self.snake.pop()
         else:
             self.snake.pop()            
@@ -316,6 +324,7 @@ class Level2AI:
     def _update_ui(self):
         
         self.screen.fill("white")
+        self.sprite_group.update()
         self.sprite_group.draw(self.screen)
         for pt in self.snake:
             pygame.draw.rect(self.screen, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
@@ -364,6 +373,7 @@ class Level2AI:
         self.screen.blit(text, [0, 0])
         # pygame.time.delay(50)
         pygame.display.update()
+        self.clock.tick(60)
         
 
 
@@ -413,3 +423,10 @@ class Level2AI:
             y -= SPEED
 
         self.head = Point(x, y)
+        self.head_rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
+    def get_frame(self):
+        surface = pygame.display.get_surface()
+        frame = pygame.surfarray.array3d(surface)  # (width, height, 3)
+        frame = np.transpose(frame, (1, 0, 2))     # → (height, width, 3)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Đúng màu cho OpenCV
+        return frame

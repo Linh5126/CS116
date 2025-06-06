@@ -1,3 +1,5 @@
+import os
+os.environ["SDL_VIDEODRIVER"] = "windib"
 import pygame
 import math
 from enum import Enum
@@ -6,6 +8,7 @@ import numpy as np
 from pytmx.util_pygame import load_pygame
 from player import Player
 from enemy import Enemy
+import cv2
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
@@ -192,7 +195,8 @@ class Level1AI:
         
         # 2. move
         self._move(action) # update the head
-        self.snake.insert(0, self.head)
+        self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
+        self.snake.insert(0, Point(self.head.x, self.head.y))
         
         # 3. check if game over
         reward = 0
@@ -275,6 +279,7 @@ class Level1AI:
     def _update_ui(self):
         
         self.screen.fill("white")
+        self.sprite_group.update()
         self.sprite_group.draw(self.screen)
         for pt in self.snake:
             pygame.draw.rect(self.screen, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
@@ -306,12 +311,12 @@ class Level1AI:
         self.screen.blit(text, [0, 0])
         # pygame.time.delay(50)
         pygame.display.update()
+        self.clock.tick(60)
         
 
 
     def _move(self, action):
         # [right, down, left, up]
-        self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE*2, BLOCK_SIZE*1.2)  
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         if np.array_equal(action, [1, 0, 0, 0]):
             new_dir = clock_wise[0] # right
@@ -326,6 +331,7 @@ class Level1AI:
 
         x = self.head.x
         y = self.head.y
+        
         if self.collidedtopleft or self.collidedtop1:
             y += SPEED*2
             reward = -1
@@ -353,5 +359,12 @@ class Level1AI:
             y += SPEED
         elif self.direction == Direction.UP:
             y -= SPEED
-
         self.head = Point(x, y)
+        self.head_rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
+    
+    def get_frame(self):
+        surface = pygame.display.get_surface()
+        frame = pygame.surfarray.array3d(surface)  # (width, height, 3)
+        frame = np.transpose(frame, (1, 0, 2))     # → (height, width, 3)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Đúng màu cho OpenCV
+        return frame

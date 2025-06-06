@@ -1,14 +1,20 @@
+
+import os
+os.environ["SDL_VIDEODRIVER"] = "windib"
 import torch
 import random
 import numpy as np
 from collections import deque
 from game_level1 import Level1AI, Direction, Point
+from game_level2 import Level2AI
 from model import Linear_QNet
 from helper import plot
 import sys
-import os
 from trainer2 import QTrainer
 import pickle
+import imageio
+import pygame
+import cv2
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
@@ -28,7 +34,7 @@ class Agent:
     def update_target(self):
         self.target_model.load_state_dict(self.model.state_dict())
 
-    def save_state(self, filename="training_state2.pkl"):
+    def save_state(self, filename="training_state.pkl"):
         data = {
             "memory": self.memory,
             "n_games": self.n_games,
@@ -38,7 +44,7 @@ class Agent:
             pickle.dump(data, f)
         print(f"Training state saved to {filename}")
 
-    def load_state(self, filename="training_state2.pkl"):
+    def load_state(self, filename="training_state.pkl"):
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 data = pickle.load(f)
@@ -108,13 +114,28 @@ class Agent:
             final_move[move] = 1
         return final_move
 
-def train2(game):
+def save_video_from_frames(frames, filename):
+    import cv2
+    if not frames:
+        return
+    height, width, _ = frames[0].shape
+    out = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc(*'mp4v'), 20, (width, height))
+    for f in frames:
+        out.write(f)
+    for _ in range(10):  # Giữ frame cuối 1s
+        out.write(frames[-1])
+    out.release()
+    print(f"🎥 Saved best game video to {filename}")
+
+def train2(game=Level1AI()):
     plot_scores = []
     plot_mean_scores = []
     total_score = 0
     record = 0
     agent = Agent()
     agent.load_state()
+    a= "Double DQN"
+    frames = []
     while True:
         state_old = agent.get_state(game)
         final_move = agent.get_action(state_old)
@@ -123,6 +144,10 @@ def train2(game):
 
         agent.train_short_memory(state_old, final_move, reward, state_new, done)
         agent.remember(state_old, final_move, reward, state_new, done)
+        # Luu video
+        pygame.display.flip()
+        frame = game.get_frame()
+        frames.append(frame)
 
         if done:
             game.reset()
@@ -133,20 +158,23 @@ def train2(game):
             if agent.n_games % 10 == 0:
                 agent.update_target()
 
-            if agent.n_games % 5 == 0:
-                agent.save_state()
-                
+            # Luu Kinh nghiem
+            #if agent.n_games % 5 == 0:
+            #   agent.save_state()
+
             if score > record:
                 record = score
                 agent.model.save()
+                save_video_from_frames(frames, f"videos2/best_game_{agent.n_games}.mp4")
+            frames = []
             plot_scores.append(score)
             total_score += score
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores)
+            plot(plot_scores, plot_mean_scores, a)
 
             # Stop after enough games
-            if agent.n_games >= 500000:
+            if agent.n_games >= 200:
                 break
 
     print("Training finished.")
