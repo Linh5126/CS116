@@ -37,7 +37,6 @@ class Agent:
     def save_state(self, filename="training_state.pkl"):
         data = {
             "memory": self.memory,
-            "n_games": self.n_games,
             "epsilon": self.epsilon
         }
         with open(filename, "wb") as f:
@@ -49,9 +48,8 @@ class Agent:
             with open(filename, "rb") as f:
                 data = pickle.load(f)
                 self.memory = data.get("memory", deque(maxlen=MAX_MEMORY))
-                self.n_games = data.get("n_games", 0)
                 self.epsilon = data.get("epsilon", 0)
-            print(f"Training state loaded from {filename} — games played: {self.n_games}, memory size: {len(self.memory)}")
+            print(f"Training state loaded from {filename}, memory size: {len(self.memory)}")
         else:
             print(f"No saved training state found at {filename}")
 
@@ -133,7 +131,8 @@ def train(game=Level1AI()):
     total_score = 0
     record = 0
     agent = Agent()
-    agent.load_state()
+    if isinstance(game, Level1AI): agent.load_state("training_state_dqn_lv1.pkl")
+    elif isinstance(game, Level2AI): agent.load_state("training_state_dqn_lv2.pkl")
     a= 'DQN'
     frames = []
     while True:
