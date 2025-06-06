@@ -19,7 +19,9 @@ def parse_args():
     parser.add_argument("level", type=str, choices=LEVEL_MAP.keys(),
                         help="Game level to train: level1, level2")
     parser.add_argument("algo", type=str, choices=AGENT_MAP.keys(),
-                        help="Training algorithm: dqn or db_dqn")
+                        help="Training algorithm: dqn or double_dqn")
+    parser.add_argument("-n", "--num_games", type=int, default=200,
+                        help="Number of games to train (default: 200)")
     return parser.parse_args()
 
 def main():
@@ -27,8 +29,9 @@ def main():
     level_class = LEVEL_MAP[args.level]
     train_func = AGENT_MAP[args.algo]
 
-    print(f"🚀 Training: {args.algo.upper()} on {args.level.capitalize()}")
-    train_func(game=level_class())
+    print(f"🚀 Training: {args.algo.upper()} on {args.level.capitalize()} for {args.num_games} games")
+    # Giờ hàm train phải nhận thêm tham số num_games
+    train_func(game=level_class(), num_games=args.num_games)
 
 if __name__ == '__main__':
     main()

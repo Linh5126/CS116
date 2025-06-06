@@ -12,9 +12,9 @@ from helper import plot
 import sys
 from trainer2 import QTrainer
 import pickle
-import imageio
 import pygame
-import cv2
+import glob
+import subprocess
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
@@ -111,6 +111,10 @@ class Agent:
             move = torch.argmax(prediction).item()
             final_move[move] = 1
         return final_move
+    
+folder = "videos2"
+if not os.path.exists(folder):
+    os.makedirs(folder)
 
 def save_video_from_frames(frames, filename):
     import cv2
@@ -125,7 +129,33 @@ def save_video_from_frames(frames, filename):
     out.release()
     print(f"🎥 Saved best game video to {filename}")
 
-def train2(game=Level1AI()):
+def delete_old_videos(filename, prefix='best_gamelv1_'):
+    folder = os.path.dirname(filename)
+    if folder == '':
+        folder = '.'  # nếu filename chỉ là tên file ở thư mục hiện tại
+
+    # Tạo pattern cho file muốn xóa: chỉ xóa file bắt đầu bằng prefix và kết thúc .mp4
+    pattern = os.path.join(folder, f'{prefix}*.mp4')
+
+    for fpath in glob.glob(pattern):
+        # Không xóa file đang lưu (filename)
+        if os.path.abspath(fpath) != os.path.abspath(filename):
+            try:
+                os.remove(fpath)
+                print(f"🗑️ Deleted old video file {fpath}")
+            except Exception as e:
+                print(f"⚠️ Could not delete {fpath}: {e}")
+
+def open_video_file(filepath):
+    full_path = os.path.abspath(filepath)
+    if sys.platform == "win32":  # Windows
+        os.startfile(full_path)
+    elif sys.platform == "darwin":  # macOS
+        subprocess.run(["open", full_path])
+    else:  # Linux, ...
+        subprocess.run(["xdg-open", full_path])
+
+def train2(game=Level1AI(), num_games=1000):
     plot_scores = []
     plot_mean_scores = []
     total_score = 0
@@ -165,8 +195,14 @@ def train2(game=Level1AI()):
             if score > record:
                 record = score
                 agent.model.save()
-                if isinstance(game, Level1AI): save_video_from_frames(frames, f"videos2/best_gamelv1_{agent.n_games}.mp4")
-                elif isinstance(game, Level2AI):save_video_from_frames(frames, f"videos2/best_gamelv2_{agent.n_games}.mp4")
+                if isinstance(game, Level1AI): 
+                    last_best_video = f"videos2/best_gamelv1_{agent.n_games}.mp4"
+                    save_video_from_frames(frames, last_best_video)
+                    delete_old_videos(last_best_video, prefix='best_gamelv1_')
+                elif isinstance(game, Level2AI):
+                    last_best_video = f"videos2/best_gamelv2_{agent.n_games}.mp4"
+                    save_video_from_frames(frames, last_best_video)
+                    delete_old_videos(last_best_video, prefix='best_gamelv2_')
             frames = []
             plot_scores.append(score)
             total_score += score
@@ -175,10 +211,13 @@ def train2(game=Level1AI()):
             plot(plot_scores, plot_mean_scores, a)
 
             # Stop after enough games
-            if agent.n_games >= 200:
+            if agent.n_games >= num_games:
                 break
 
     print("Training finished.")
+    if last_best_video is not None and os.path.exists(last_best_video):
+        print(f"▶️ Opening best video: {last_best_video}")
+        open_video_file(last_best_video)
     from mainscreen import main_screen
     main_screen()
     sys.exit()
