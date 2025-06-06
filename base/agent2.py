@@ -34,7 +34,7 @@ class Agent:
     def update_target(self):
         self.target_model.load_state_dict(self.model.state_dict())
 
-    def save_state(self, filename="training_state.pkl"):
+    def save_state(self, filename="training_state2.pkl"):
         data = {
             "memory": self.memory,
             "n_games": self.n_games,
@@ -44,7 +44,7 @@ class Agent:
             pickle.dump(data, f)
         print(f"Training state saved to {filename}")
 
-    def load_state(self, filename="training_state.pkl"):
+    def load_state(self, filename="training_state2.pkl"):
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 data = pickle.load(f)
@@ -122,7 +122,7 @@ def save_video_from_frames(frames, filename):
     out = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc(*'mp4v'), 20, (width, height))
     for f in frames:
         out.write(f)
-    for _ in range(10):  # Giữ frame cuối 1s
+    for _ in range(5):  # Giữ frame cuối 1s
         out.write(frames[-1])
     out.release()
     print(f"🎥 Saved best game video to {filename}")
@@ -159,13 +159,15 @@ def train2(game=Level1AI()):
                 agent.update_target()
 
             # Luu Kinh nghiem
-            #if agent.n_games % 5 == 0:
-            #   agent.save_state()
+            if agent.n_games % 5 == 0:
+               if isinstance(game, Level1AI): agent.save_state("training_state_db_dqn_lv1.pkl")
+               elif isinstance(game, Level2AI): agent.save_state("training_state_db_dqn_lv2.pkl")
 
             if score > record:
                 record = score
                 agent.model.save()
-                save_video_from_frames(frames, f"videos2/best_game_{agent.n_games}.mp4")
+                if isinstance(game, Level1AI): save_video_from_frames(frames, f"videos2/best_gamelv1_{agent.n_games}.mp4")
+                elif isinstance(game, Level2AI):save_video_from_frames(frames, f"videos2/best_gamelv2_{agent.n_games}.mp4")
             frames = []
             plot_scores.append(score)
             total_score += score
