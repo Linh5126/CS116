@@ -20,9 +20,10 @@ def parse_args():
                         help="Game level to train: level1, level2")
     parser.add_argument("algo", type=str, choices=AGENT_MAP.keys(),
                         help="Training algorithm: dqn or double_dqn")
-    parser.add_argument("-n", "--num_games", type=int, default=200,
-                        help="Number of games to train (default: 200)")
+    parser.add_argument("num_games", type=int,
+                        help="Number of games to train (e.g., 100, 200)")
     return parser.parse_args()
+
 
 def main():
     args = parse_args()

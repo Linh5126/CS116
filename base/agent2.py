@@ -1,4 +1,3 @@
-
 import os
 os.environ["SDL_VIDEODRIVER"] = "windib"
 import torch
@@ -26,13 +25,17 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(12, 256, 4)
-        self.target_model = Linear_QNet(12, 256, 4)
+        self.model = Linear_QNet(12, 256, 128, 4)
+        self.target_model = Linear_QNet(12, 256, 128, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
-        self.update_target()
+        self.soft_update(tau=0.01)
 
     def update_target(self):
         self.target_model.load_state_dict(self.model.state_dict())
+
+    def soft_update(self, tau=0.01):
+        for target_param, local_param in zip(self.target_model.parameters(), self.model.parameters()):
+            target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)    
 
     def save_state(self, filename="training_state2.pkl"):
         data = {
@@ -112,7 +115,7 @@ class Agent:
             final_move[move] = 1
         return final_move
     
-folder = "videos2"
+folder = "videos1"
 if not os.path.exists(folder):
     os.makedirs(folder)
 
@@ -156,6 +159,7 @@ def open_video_file(filepath):
         subprocess.run(["xdg-open", full_path])
 
 def train2(game=Level1AI(), num_games=1000):
+    nw=0
     plot_scores = []
     plot_mean_scores = []
     total_score = 0
@@ -181,46 +185,53 @@ def train2(game=Level1AI(), num_games=1000):
         if done:
             game.reset()
             agent.n_games += 1
-            agent.epsilon = max(0.01, agent.epsilon * 0.995)
+            agent.epsilon = max(0.01, 0.995 ** agent.n_games)
             agent.train_long_memory()
 
             if agent.n_games % 10 == 0:
-                agent.update_target()
+                agent.soft_update()
 
             # Luu Kinh nghiem
-            if agent.n_games % 5 == 0:
-               if isinstance(game, Level1AI): agent.save_state("training_state_db_dqn_lv1.pkl")
-               elif isinstance(game, Level2AI): agent.save_state("training_state_db_dqn_lv2.pkl")
+            #if agent.n_games % 5 == 0:
+            #   if isinstance(game, Level1AI): agent.save_state("training_state_db_dqn_lv1.pkl")
+            #   elif isinstance(game, Level2AI): agent.save_state("training_state_db_dqn_lv2.pkl")
 
             if score > record:
                 record = score
                 agent.model.save()
                 if isinstance(game, Level1AI): 
-                    last_best_video = f"videos2/best_gamelv1_{agent.n_games}.mp4"
+                    last_best_video = f"videos1/best_gamelv1_db_dqn_{agent.n_games}.mp4"
                     save_video_from_frames(frames, last_best_video)
-                    delete_old_videos(last_best_video, prefix='best_gamelv1_')
+                    delete_old_videos(last_best_video, prefix='best_gamelv1_db_dqn_')
                 elif isinstance(game, Level2AI):
-                    last_best_video = f"videos2/best_gamelv2_{agent.n_games}.mp4"
+                    last_best_video = f"videos1/best_gamelv2_db_dqn_{agent.n_games}.mp4"
                     save_video_from_frames(frames, last_best_video)
-                    delete_old_videos(last_best_video, prefix='best_gamelv2_')
+                    delete_old_videos(last_best_video, prefix='best_gamelv2_db_dqn_')
+            if score == 6: nw = nw + 1
             frames = []
             plot_scores.append(score)
             total_score += score
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores, a)
+            plot(plot_scores, plot_mean_scores, a, nw)
 
             # Stop after enough games
             if agent.n_games >= num_games:
                 break
+            
+    # Tự lưu lại đồ thịthị        
+    if isinstance(game, Level1AI): final_chart_path = f"plots/double_dqn_lv1_{num_games}.png"
+    elif isinstance(game, Level2AI): final_chart_path = f"plots/double_dqn_lv2_{num_games}.png"
+    plot(plot_scores, plot_mean_scores, a='Double DQN Training Result', nw=nw , save_path=final_chart_path)
 
+    print("Total number of victories: ", nw)
     print("Training finished.")
-    if last_best_video is not None and os.path.exists(last_best_video):
-        print(f"▶️ Opening best video: {last_best_video}")
-        open_video_file(last_best_video)
-    from mainscreen import main_screen
-    main_screen()
-    sys.exit()
+    # phát video màn chơi tốt nhất
+    #if last_best_video is not None and os.path.exists(last_best_video):
+    #    print(f"▶️ Opening best video: {last_best_video}")
+    #    open_video_file(last_best_video)
+    #lưu lại đường giá trị trung bình
+    return plot_mean_scores, nw
 
 if __name__ == '__main__':
     train2()
