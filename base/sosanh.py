@@ -37,7 +37,7 @@ def main():
     # Tự lưu lại đồ thịthị        
     if isinstance(level_class(), Level1AI): final_chart_path = f"plots/dqn_vs_db_dqn_lv1_{num_games}.png"
     elif isinstance(level_class(), Level2AI): final_chart_path = f"plots/dqn_vs_db_dqn_lv2_{num_games}.png"
-    plot_dual_mean_scores(mean_scores_dqn, mean_scores_ddqn, label1='DQN', label2='Double DQN', save_path=final_chart_path)
+    plot_dual_mean_scores(mean_scores_dqn, mean_scores_ddqn, total_dqn, total_ddqn, label1='DQN', label2='Double DQN', save_path=final_chart_path)
 
 if __name__ == "__main__":
     main()

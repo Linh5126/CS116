@@ -232,16 +232,21 @@ class Level2AI:
         food_collide = pygame.Rect.colliderect(self.head_rect, self.food_rect)
         if food_collide:
             self.score += 1
-            reward = 20
+            reward = 20  
             if self.score == 1:
+                reward += 10
                 self._place_food()
             elif self.score == 2:
+                reward += 10
                 self._place_food2()
             elif self.score == 3:
+                reward += 10
                 self._place_food3()
             elif self.score == 4:
+                reward += 10
                 self._place_food4()
             elif self.score == 5:
+                reward += 10
                 self._place_food5()
             elif self.score >= 6:
                 game_over = True

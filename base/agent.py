@@ -25,8 +25,8 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(12, 256, 128, 4)
-        self.target_model = Linear_QNet(12, 256, 128, 4)
+        self.model = Linear_QNet(12, 128, 64, 4)
+        self.target_model = Linear_QNet(12, 128, 64, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
         self.soft_update(tau=0.01)
 
@@ -115,7 +115,7 @@ class Agent:
             final_move[move] = 1
         return final_move
 
-folder = "videos2"
+folder = "videos1"
 if not os.path.exists(folder):
     os.makedirs(folder)
 

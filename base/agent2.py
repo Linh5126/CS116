@@ -25,8 +25,8 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(12, 256, 128, 4)
-        self.target_model = Linear_QNet(12, 256, 128, 4)
+        self.model = Linear_QNet(12, 128, 64, 4)
+        self.target_model = Linear_QNet(12, 128, 64, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
         self.soft_update(tau=0.01)
 
@@ -189,7 +189,7 @@ def train2(game=Level1AI(), num_games=1000):
             agent.train_long_memory()
 
             if agent.n_games % 10 == 0:
-                agent.soft_update()
+                agent.soft_update(tau=0.01)
 
             # Luu Kinh nghiem
             #if agent.n_games % 5 == 0:
