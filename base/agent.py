@@ -6,6 +6,7 @@ import numpy as np
 from collections import deque
 from game_level1 import Level1AI, Direction, Point, SPEED
 from game_level2 import Level2AI
+from game_level3 import Level3AI
 from model import Linear_QNet
 from helper import plot
 import sys
@@ -82,11 +83,8 @@ class Agent:
         self.target_model = Linear_QNet(15, 512, 256, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
         
-        # Curriculum Learning
-        self.curriculum_wins = 0
-        self.curriculum_games = 0
-        self.current_difficulty = 1
-        self.difficulty_threshold = 0.7  # 70% win rate để tăng difficulty
+        # Performance tracking
+        self.total_wins = 0
         
         # Learning rate scheduling
         self.initial_lr = LR
@@ -96,30 +94,7 @@ class Agent:
         self.recent_scores = deque(maxlen=100)
         self.score_improvement_threshold = 10
         
-    def update_curriculum(self, win):
-        """Tự động điều chỉnh curriculum learning dựa trên hiệu suất"""
-        self.curriculum_games += 1
-        if win:
-            self.curriculum_wins += 1
-            
-        # Kiểm tra mỗi 50 games
-        if self.curriculum_games >= 50:
-            win_rate = self.curriculum_wins / self.curriculum_games
-            
-            if win_rate >= self.difficulty_threshold and self.current_difficulty < 4:
-                self.current_difficulty += 1
-                print(f"🎚️ Tăng difficulty lên level {self.current_difficulty} (Win rate: {win_rate:.1%})")
-                # Reset để kiểm tra difficulty mới
-                self.curriculum_wins = 0
-                self.curriculum_games = 0
-                # Tăng epsilon để explore với difficulty mới
-                self.epsilon = min(0.5, self.epsilon + 0.1)
-            elif win_rate < 0.3 and self.current_difficulty > 1:
-                # Giảm difficulty nếu quá khó
-                self.current_difficulty -= 1
-                print(f"🎚️ Giảm difficulty xuống level {self.current_difficulty} (Win rate: {win_rate:.1%})")
-                self.curriculum_wins = 0
-                self.curriculum_games = 0
+
 
     def update_target(self):
         self.target_model.load_state_dict(self.model.state_dict())
@@ -138,9 +113,7 @@ class Agent:
         data = {
             "memory": self.memory,
             "epsilon": self.epsilon,
-            "current_difficulty": self.current_difficulty,
-            "curriculum_wins": self.curriculum_wins,
-            "curriculum_games": self.curriculum_games
+            "total_wins": self.total_wins
         }
         with open(filename, "wb") as f:
             pickle.dump(data, f)
@@ -171,9 +144,7 @@ class Agent:
                         self.memory = old_memory
                     
                     self.epsilon = data.get("epsilon", 0.5)
-                    self.current_difficulty = data.get("current_difficulty", 1)
-                    self.curriculum_wins = data.get("curriculum_wins", 0)
-                    self.curriculum_games = data.get("curriculum_games", 0)
+                    self.total_wins = data.get("total_wins", 0)
                     
                 print(f"Training state loaded from {filename}")
                 print(f"⚠️ Note: Old experience data with incompatible state size was skipped")
@@ -182,9 +153,7 @@ class Agent:
                 print(f"Starting with fresh state...")
                 self.memory = PrioritizedReplayBuffer(MAX_MEMORY)
                 self.epsilon = 0.95
-                self.current_difficulty = 1
-                self.curriculum_wins = 0
-                self.curriculum_games = 0
+                self.total_wins = 0
         else:
             print(f"No saved training state found at {filename}")
 
@@ -275,16 +244,8 @@ class Agent:
         self.remember(state, action, reward, next_state, done, td_error)
 
     def get_action(self, state):
-        # Adaptive epsilon với curriculum learning
-        if self.current_difficulty > 2:
-            # Giảm exploration ở difficulty cao
-            exploration_factor = 0.8
-        else:
-            exploration_factor = 1.0
-            
-        adjusted_epsilon = self.epsilon * exploration_factor
-        
-        if random.random() < adjusted_epsilon:
+        # Standard epsilon-greedy action selection
+        if random.random() < self.epsilon:
             move = random.randint(0, 3)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
@@ -338,7 +299,7 @@ def open_video_file(filepath):
     else:  # Linux, ...
         subprocess.run(["xdg-open", full_path])
 
-def train(game=Level1AI(), num_games=1000):
+def train(game=Level2AI(), num_games=1000):
     nw = 0
     plot_scores = []
     plot_mean_scores = []
@@ -351,18 +312,16 @@ def train(game=Level1AI(), num_games=1000):
         agent.load_state("training_state_dqn_lv1.pkl")
     elif isinstance(game, Level2AI): 
         agent.load_state("training_state_dqn_lv2.pkl")
+    elif isinstance(game, Level3AI): 
+        agent.load_state("training_state_dqn_lv3.pkl")
     
     frames = []
     last_best_video = None
     consecutive_wins = 0
     
-    print(f"🚀 Bắt đầu training với curriculum learning tự động")
-    print(f"📊 Bắt đầu ở difficulty level: {agent.current_difficulty}")
+    print(f"🚀 Bắt đầu training")
     
     while True:
-        # Update difficulty based on curriculum learning
-        if hasattr(game, 'set_difficulty'):
-            game.set_difficulty(agent.current_difficulty)
         
         state_old = agent.get_state(game)
         final_move = agent.get_action(state_old)
@@ -381,14 +340,12 @@ def train(game=Level1AI(), num_games=1000):
             game.reset()
             agent.n_games += 1
             
-            # Update curriculum learning
+            # Count wins
             win = score >= 10
-            agent.update_curriculum(win)
-            
-            # Count consecutive wins for advanced curriculum
             if win:
                 consecutive_wins += 1
                 nw += 1
+                agent.total_wins += 1
             else:
                 consecutive_wins = 0
             
@@ -422,15 +379,19 @@ def train(game=Level1AI(), num_games=1000):
                 record = score
                 agent.model.save()
                 if isinstance(game, Level1AI): 
-                    last_best_video = f"videos1/best_gamelv1_dqn_{agent.n_games}_score{score}_diff{agent.current_difficulty}.mp4"
+                    last_best_video = f"videos1/best_gamelv1_dqn_{agent.n_games}_score{score}.mp4"
                     save_video_from_frames(frames, last_best_video)
                     delete_old_videos(last_best_video, prefix='best_gamelv1_dqn_')
                 elif isinstance(game, Level2AI):
-                    last_best_video = f"videos1/best_gamelv2_dqn_{agent.n_games}_score{score}_diff{agent.current_difficulty}.mp4"
+                    last_best_video = f"videos1/best_gamelv2_dqn_{agent.n_games}_score{score}.mp4"
                     save_video_from_frames(frames, last_best_video)
                     delete_old_videos(last_best_video, prefix='best_gamelv2_dqn_')
+                elif isinstance(game, Level3AI):
+                    last_best_video = f"videos1/best_gamelv3_dqn_{agent.n_games}_score{score}.mp4"
+                    save_video_from_frames(frames, last_best_video)
+                    delete_old_videos(last_best_video, prefix='best_gamelv3_dqn_')
                 
-                print(f"🏆 Kỷ lục mới! Score: {score}, Difficulty: {agent.current_difficulty}")
+                print(f"🏆 Kỷ lục mới! Score: {score}")
             
             frames = []
             plot_scores.append(score)
@@ -447,7 +408,7 @@ def train(game=Level1AI(), num_games=1000):
                 print(f"🎮 Game {agent.n_games}")
                 print(f"   📈 Score: {score}, Mean: {mean_score:.2f}, Recent Mean: {recent_mean:.2f}")
                 print(f"   🏅 Record: {record}, Wins: {nw} ({win_rate:.1%})")
-                print(f"   🎚️ Difficulty: {agent.current_difficulty}, Epsilon: {agent.epsilon:.3f}")
+                print(f"   🎚️ Epsilon: {agent.epsilon:.3f}")
                 print(f"   📚 Learning Rate: {current_lr:.6f}, Memory: {len(agent.memory)}")
                 print(f"   🔄 Consecutive Wins: {consecutive_wins}")
             
@@ -457,21 +418,18 @@ def train(game=Level1AI(), num_games=1000):
                     agent.save_state("training_state_dqn_lv1.pkl")
                 elif isinstance(game, Level2AI): 
                     agent.save_state("training_state_dqn_lv2.pkl")
+                elif isinstance(game, Level3AI): 
+                    agent.save_state("training_state_dqn_lv3.pkl")
             
-            plot(plot_scores, plot_mean_scores, f'DQN (Diff: {agent.current_difficulty})', nw)
+            plot(plot_scores, plot_mean_scores, 'DQN Training', nw)
             
-            # Advanced early stopping conditions
+            # Early stopping conditions
             if agent.n_games >= 200:
                 recent_win_rate = sum(1 for s in list(agent.recent_scores)[-50:] if s >= 10) / min(50, len(agent.recent_scores))
                 
-                # Stop if mastered highest difficulty
-                if agent.current_difficulty >= 4 and recent_win_rate >= 0.8:
-                    print(f"🎯 Đã thành thạo! Difficulty 4 với win rate {recent_win_rate:.1%}")
-                    break
-                
-                # Stop if good performance on high difficulty
-                if agent.current_difficulty >= 3 and recent_win_rate >= 0.7 and agent.n_games >= 500:
-                    print(f"✅ Training hoàn thành! Difficulty {agent.current_difficulty} với win rate {recent_win_rate:.1%}")
+                # Stop if good performance
+                if recent_win_rate >= 0.8 and agent.n_games >= 500:
+                    print(f"✅ Training hoàn thành! Win rate {recent_win_rate:.1%}")
                     break
             
             # Maximum games limit
@@ -486,9 +444,12 @@ def train(game=Level1AI(), num_games=1000):
     elif isinstance(game, Level2AI): 
         final_chart_path = f"plots/dqn_lv2_curriculum_{num_games}.png"
         agent.save_state("training_state_dqn_lv2.pkl")
+    elif isinstance(game, Level3AI): 
+        final_chart_path = f"plots/dqn_lv3_curriculum_{num_games}.png"
+        agent.save_state("training_state_dqn_lv3.pkl")
     
     plot(plot_scores, plot_mean_scores, 
-         a=f'DQN Curriculum Learning (Final Diff: {agent.current_difficulty})', 
+         a='DQN Training Results', 
          nw=nw, save_path=final_chart_path)
     
     # Detailed final statistics
@@ -503,7 +464,6 @@ def train(game=Level1AI(), num_games=1000):
     print(f"   📈 Recent win rate (50 games cuối): {recent_win_rate:.1%}")
     print(f"   🎯 Best score: {record}")
     print(f"   📊 Final mean score: {mean_score:.2f}")
-    print(f"   🎚️ Final difficulty level: {agent.current_difficulty}")
     print(f"   🧠 Final epsilon: {agent.epsilon:.3f}")
     print(f"   💾 Memory size: {len(agent.memory)}")
     

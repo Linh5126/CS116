@@ -7,7 +7,7 @@ class Enemy:
         self.player_y = player_y
         self.width = width
         self.height = height
-        self.enemy_speed = 10
+        self.enemy_speed = enemy_speed
         self.color = color
         self.right = right
         self.up = up
@@ -38,22 +38,26 @@ class Enemy:
             self.rect2.y = self.player_y
     def move3(self, bound_x1, bound_x2, bound_y1, bound_y2):
         if self.direction == 1:  # Moving right
-            self.player_x += self.enemy_speed - 5
+            self.player_x += self.enemy_speed
             if self.player_x >= bound_x2:
                 self.player_x = bound_x2
                 self.direction = 2  # Change direction to down
         elif self.direction == 2:  # Moving down
-            self.player_y += self.enemy_speed - 5
+            self.player_y += self.enemy_speed
             if self.player_y >= bound_y2:
                 self.player_y = bound_y2
                 self.direction = 3  # Change direction to left
         elif self.direction == 3:  # Moving left
-            self.player_x -= self.enemy_speed - 5
+            self.player_x -= self.enemy_speed
             if self.player_x <= bound_x1:
                 self.player_x = bound_x1
                 self.direction = 4  # Change direction to up
         elif self.direction == 4:  # Moving up
-            self.player_y -= self.enemy_speed - 5
+            self.player_y -= self.enemy_speed
             if self.player_y <= bound_y1:
                 self.player_y = bound_y1
                 self.direction = 1  # Change direction to right
+        
+        # Cập nhật collision rect sau khi di chuyển
+        self.rect2.x = self.player_x
+        self.rect2.y = self.player_y

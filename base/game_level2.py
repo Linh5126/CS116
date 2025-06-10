@@ -6,7 +6,6 @@ from enum import Enum
 from collections import namedtuple
 import numpy as np
 from pytmx.util_pygame import load_pygame
-from player import Player
 from enemy import Enemy
 import cv2
 from collections import deque
@@ -38,6 +37,7 @@ class Level2AI:
     def __init__(self, w=1320, h=720):
         self.w = w
         self.h = h
+        # Spawn point và food position được tối ưu cho Level 2
         self.spawnpoint_x = 140
         self.spawnpoint_y = 275
         self.food_x = 1102
@@ -114,22 +114,27 @@ class Level2AI:
     
     def reset(self):
         
-        # init game state
+        # init game state - khởi tạo lại enemies
         self.direction = Direction.RIGHT
-        self.enemy1 = Enemy(350, 156, 14, 14, 5, (0, 0, 255))
-        self.enemy2 = Enemy(414, 484, 14, 14, 5, (0, 0, 255))
-        self.enemy3 = Enemy(478, 156, 14, 14, 5, (0, 0, 255), False)
-        self.enemy4 = Enemy(542, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy5 = Enemy(606, 156, 14, 14, 5, (0, 0, 255), False)
-        self.enemy6 = Enemy(670, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy7 = Enemy(734, 156, 14, 14, 5, (0, 0, 255), False)
-        self.enemy8 = Enemy(798, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy9 = Enemy(862, 156, 14, 14, 5, (0, 0, 255), False)
-        self.enemy10 = Enemy(926, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy11 = Enemy(990, 156, 14, 14, 5, (0, 0, 255), False)
-        self.enemy12 = Enemy(1054, 484, 14, 14, 5, (0, 0, 255), False)
-        for enemy in [ self.enemy1, self.enemy2, self.enemy3, self.enemy4, self.enemy5, self.enemy6, self.enemy7, self.enemy8, self.enemy9, self.enemy10, self.enemy11, self.enemy12] :
-            enemy.enemy_speed = 5
+        
+        # Tối ưu: Sử dụng list thay vì 12 biến riêng biệt
+        self.enemies = [
+            Enemy(350, 156, 14, 14, 5, (0, 0, 255)),  # enemy1
+            Enemy(414, 484, 14, 14, 5, (0, 0, 255)),  # enemy2
+            Enemy(478, 156, 14, 14, 5, (0, 0, 255), False),  # enemy3
+            Enemy(542, 484, 14, 14, 5, (0, 0, 255), False),  # enemy4
+            Enemy(606, 156, 14, 14, 5, (0, 0, 255), False),  # enemy5
+            Enemy(670, 484, 14, 14, 5, (0, 0, 255), False),  # enemy6
+            Enemy(734, 156, 14, 14, 5, (0, 0, 255), False),  # enemy7
+            Enemy(798, 484, 14, 14, 5, (0, 0, 255), False),  # enemy8
+            Enemy(862, 156, 14, 14, 5, (0, 0, 255), False),  # enemy9
+            Enemy(926, 484, 14, 14, 5, (0, 0, 255), False),  # enemy10
+            Enemy(990, 156, 14, 14, 5, (0, 0, 255), False),  # enemy11
+            Enemy(1054, 484, 14, 14, 5, (0, 0, 255), False),  # enemy12
+        ]
+        
+        # Set enemy speeds
+        self.set_enemy_speeds(5)
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
         self.snake = [self.head]
         self.score = 0
@@ -139,6 +144,15 @@ class Level2AI:
         self._place_food()
         self.frame_iteration = 0
         self.visited = set()
+
+    def set_enemy_speeds(self, speed=5):
+        """Set speed cho tất cả enemies"""
+        for enemy in self.enemies:
+            enemy.enemy_speed = speed
+    
+    def get_enemy_count(self):
+        """Trả về số lượng enemies hiện tại"""
+        return len(self.enemies)
 
     def _place_food(self):
         self.food = Point(self.food_x, self.food_y)
@@ -166,8 +180,8 @@ class Level2AI:
         self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
         self.snake.insert(0, Point(self.head.x, self.head.y))
         
-        # Enhanced reward system cho Level 2 (khó hơn Level 1)
-        reward = -0.05  # Phạt base cao hơn do Level 2 khó hơn
+        # Enhanced reward system cho Level 2 với 12 enemies speed = 5
+        reward = -0.05  # Phạt base cao hơn do Level 2 khó hơn với 12 enemies
         game_over = False
         
         # Dynamic timeout dựa trên distance to food và difficulty
@@ -181,11 +195,11 @@ class Level2AI:
             reward = -30  # Phạt timeout nặng hơn
             return reward, game_over, self.score
         
-        # Kiểm tra va chạm enemy với proximity warning
+        # Kiểm tra va chạm enemy với proximity warning - khó hơn với 12 enemies
         enemy_collision, min_enemy_dist = self._check_enemy_collision_with_distance()
         if enemy_collision:
             game_over = True
-            reward = -50  # Phạt va chạm enemy rất nặng cho Level 2
+            reward = -50  # Phạt va chạm enemy rất nặng cho Level 2 với 12 enemies
             return reward, game_over, self.score
         
         # Kiểm tra va chạm tường
@@ -194,14 +208,15 @@ class Level2AI:
             reward = -25  # Phạt va chạm tường
             return reward, game_over, self.score
         
-        # Kiểm tra ăn food (WIN CONDITION)
+        # Kiểm tra ăn food (WIN CONDITION) - với 12 enemies active
         if self.head_rect.colliderect(self.food_rect):
             self.score += 10
-            # Enhanced win reward cho Level 2
-            base_win_reward = 200  # Thưởng cao hơn Level 1
+            # Enhanced win reward cho Level 2 với 12 enemies
+            base_win_reward = 250  # Thưởng cao hơn Level 1 vì có 12 enemies
             time_bonus = max(0, (max_timeout - self.frame_iteration) / 10)  # Thưởng hoàn thành nhanh
             efficiency_bonus = max(0, 50 - (self.frame_iteration / 20))  # Thưởng hiệu quả
-            total_reward = base_win_reward + time_bonus + efficiency_bonus
+            survival_bonus = 75  # Bonus cho việc sống sót với 12 enemies
+            total_reward = base_win_reward + time_bonus + efficiency_bonus + survival_bonus
             
             reward = total_reward
             game_over = True
@@ -256,14 +271,11 @@ class Level2AI:
     def _check_enemy_collision_with_distance(self):
         """Kiểm tra va chạm enemy và trả về distance tới enemy gần nhất"""
         head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
-        enemies = [self.enemy1, self.enemy2, self.enemy3, self.enemy4, self.enemy5, 
-                self.enemy6, self.enemy7, self.enemy8, self.enemy9, self.enemy10, 
-                self.enemy11, self.enemy12]
         
         min_distance = float('inf')
         collision = False
         
-        for enemy in enemies:
+        for enemy in self.enemies:
             if head_rect.colliderect(enemy.rect2):
                 collision = True
             
@@ -363,11 +375,8 @@ class Level2AI:
     def is_collision_enemy(self):
         """Kiểm tra va chạm với enemy"""
         head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
-        enemies = [self.enemy1, self.enemy2, self.enemy3, self.enemy4, self.enemy5, 
-                self.enemy6, self.enemy7, self.enemy8, self.enemy9, self.enemy10, 
-                self.enemy11, self.enemy12]
         
-        for enemy in enemies:
+        for enemy in self.enemies:
             if head_rect.colliderect(enemy.rect2):
                 return True
         return False
@@ -429,33 +438,15 @@ class Level2AI:
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(300, 200, 25, 300), 2) #Left3
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(1088, 384, 25, 128), 2) # Right1
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(900, 170, 320, 30), 2) # Right2
-        self.enemy1.move2(155, 484)
-        self.enemy2.move2(155, 484)
-        self.enemy3.move2(155, 484)
-        self.enemy4.move2(155, 484)
-        self.enemy5.move2(155, 484)
-        self.enemy6.move2(155, 484)
-        self.enemy7.move2(155, 484)
-        self.enemy8.move2(155, 484)
-        self.enemy9.move2(155, 484)
-        self.enemy10.move2(155, 484)
-        self.enemy11.move2(155, 484)
-        self.enemy12.move2(155, 484)
-        self.enemy1.draw(self.screen)
-        self.enemy2.draw(self.screen)
-        self.enemy3.draw(self.screen)
-        self.enemy4.draw(self.screen)
-        self.enemy5.draw(self.screen)
-        self.enemy6.draw(self.screen)
-        self.enemy7.draw(self.screen)
-        self.enemy8.draw(self.screen)
-        self.enemy9.draw(self.screen)
-        self.enemy10.draw(self.screen)
-        self.enemy11.draw(self.screen)
-        self.enemy12.draw(self.screen)
+        # Tối ưu: Move và draw tất cả enemies bằng loop
+        for enemy in self.enemies:
+            enemy.move2(155, 484)
+        for enemy in self.enemies:
+            enemy.draw(self.screen)
 
 
-        text = font.render("Score: " + str(self.score), True, WHITE)
+        # Enhanced UI hiển thị thông tin game
+        text = font.render(f"Score: {self.score} | Enemies: {len(self.enemies)} | Frame: {self.frame_iteration}", True, WHITE)
         self.screen.blit(text, [0, 0])
         # pygame.time.delay(50)
         pygame.display.update()

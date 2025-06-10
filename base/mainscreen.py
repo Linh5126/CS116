@@ -6,8 +6,10 @@ from agent import train
 from agent2 import train2
 from level2 import Level2
 from level1 import Level1
+from level3 import Level3
 from game_level1 import Level1AI
 from game_level2 import Level2AI
+from game_level3 import Level3AI
 # from game_ai import snake
 
 # Initialize Pygame
@@ -151,10 +153,10 @@ def main_screen():
                             print("Level 2 selected")
                             game = Level2()
                             game.run()
-                        #elif selected_option == 2:
-                        #    print("Level 3 selected")
-                        #    game = Level3()
-                        #    game.run()
+                        elif selected_option == 2:
+                            print("Level 3 selected")
+                            game = Level3()
+                            game.run()
 
                     elif current_screen == "level_selection DQN":
                         if selected_option == 0:
@@ -166,10 +168,10 @@ def main_screen():
                             game=Level2AI()
                             train(game)
                             # Add your code to start level 2
-                        #elif selected_option == 2:
-                        #    print("Level 3 selected")
-                        #    game = Level2AI()
-                        #    train(game)
+                        elif selected_option == 2:
+                            print("Level 3 selected")
+                            game = Level3AI()
+                            train(game)
                             # Add your code to start level 3
                     elif current_screen == "level_selection DBDQN":
                         if selected_option == 0:
@@ -180,10 +182,10 @@ def main_screen():
                             print("Level 2 selected")
                             game = Level2AI()
                             train2(game)
-                        #elif selected_option == 2:
-                        #    print("Level 3 - REINFORCE selected")
-                        #    game = Level2AI()
-                        #    train2(game)
+                        elif selected_option == 2:
+                            print("Level 3 - REINFORCE selected")
+                            game = Level3AI()
+                            train2(game)
                 elif event.key == pygame.K_BACKSPACE:
                     if current_screen == "level_selection":
                         current_screen = "main_menu"

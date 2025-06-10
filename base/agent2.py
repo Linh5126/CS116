@@ -6,6 +6,7 @@ import numpy as np
 from collections import deque
 from game_level1 import Level1AI, Direction, Point, SPEED  # Thêm SPEED
 from game_level2 import Level2AI
+from game_level3 import Level3AI
 from model import Linear_QNet
 from helper import plot
 import sys
@@ -82,11 +83,8 @@ class Agent:
         self.target_model = Linear_QNet(15, 512, 256, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
         
-        # Curriculum Learning cho Level 2 (có nhiều enemies hơn)
-        self.curriculum_wins = 0
-        self.curriculum_games = 0
-        self.current_difficulty = 1
-        self.difficulty_threshold = 0.7  # 70% win rate để tăng difficulty
+        # Performance tracking
+        self.total_wins = 0
         
         # Learning rate scheduling
         self.initial_lr = LR
@@ -97,30 +95,7 @@ class Agent:
         
         self.update_target()
 
-    def update_curriculum(self, win):
-        """Tự động điều chỉnh curriculum learning cho Level 2"""
-        self.curriculum_games += 1
-        if win:
-            self.curriculum_wins += 1
-            
-        # Kiểm tra mỗi 50 games
-        if self.curriculum_games >= 50:
-            win_rate = self.curriculum_wins / self.curriculum_games
-            
-            if win_rate >= self.difficulty_threshold and self.current_difficulty < 4:
-                self.current_difficulty += 1
-                print(f"🎚️ Level 2: Tăng difficulty lên level {self.current_difficulty} (Win rate: {win_rate:.1%})")
-                # Reset để kiểm tra difficulty mới
-                self.curriculum_wins = 0
-                self.curriculum_games = 0
-                # Tăng epsilon để explore với difficulty mới
-                self.epsilon = min(0.5, self.epsilon + 0.1)
-            elif win_rate < 0.3 and self.current_difficulty > 1:
-                # Giảm difficulty nếu quá khó
-                self.current_difficulty -= 1
-                print(f"🎚️ Level 2: Giảm difficulty xuống level {self.current_difficulty} (Win rate: {win_rate:.1%})")
-                self.curriculum_wins = 0
-                self.curriculum_games = 0
+
 
     def update_target(self):
         self.target_model.load_state_dict(self.model.state_dict())
@@ -140,9 +115,7 @@ class Agent:
             "memory": self.memory,
             "epsilon": self.epsilon,
             "n_games": self.n_games,
-            "current_difficulty": self.current_difficulty,
-            "curriculum_wins": self.curriculum_wins,
-            "curriculum_games": self.curriculum_games
+            "total_wins": self.total_wins
         }
         with open(filename, "wb") as f:
             pickle.dump(data, f)
@@ -174,9 +147,7 @@ class Agent:
                     
                     self.epsilon = data.get("epsilon", 0.5)
                     self.n_games = data.get("n_games", 0)
-                    self.current_difficulty = data.get("current_difficulty", 1)
-                    self.curriculum_wins = data.get("curriculum_wins", 0)
-                    self.curriculum_games = data.get("curriculum_games", 0)
+                    self.total_wins = data.get("total_wins", 0)
                     
                 print(f"Training state loaded from {filename}")
                 print(f"⚠️ Note: Old experience data with incompatible state size was skipped")
@@ -185,9 +156,7 @@ class Agent:
                 print(f"Starting with fresh state...")
                 self.memory = PrioritizedReplayBuffer(MAX_MEMORY)
                 self.epsilon = 0.95
-                self.current_difficulty = 1
-                self.curriculum_wins = 0
-                self.curriculum_games = 0
+                self.total_wins = 0
         else:
             print(f"No saved training state found at {filename}")
 
@@ -239,7 +208,7 @@ class Agent:
             # Distance to food (normalized) (1 feature)
             min(1.0, math.sqrt((game.food.x - head.x)**2 + (game.food.y - head.y)**2) / 1000),
             
-            # Enhanced enemy detection cho Level 2 (3 features)
+            # Enhanced enemy detection (3 features) - tương thích với tất cả levels
             self._get_enemy_danger_direction(game, point_l),
             self._get_enemy_danger_direction(game, point_r), 
             self._get_enemy_danger_direction(game, point_u),
@@ -249,15 +218,20 @@ class Agent:
 
     def _get_enemy_danger_direction(self, game, point):
         """Kiểm tra nguy hiểm enemy ở một direction cụ thể"""
+        # Sử dụng method tối ưu của game nếu có
+        if hasattr(game, 'is_collision_enemy_at'):
+            return game.is_collision_enemy_at(point)
+        
+        # Fallback cho các game chưa có method này
         test_rect = pygame.Rect(point.x, point.y, 32, 32)
         
-        # Kiểm tra với tất cả enemies trong Level 2
-        if hasattr(game, 'enemy12'):  # Level2 có 12 enemies
-            enemies = [game.enemy1, game.enemy2, game.enemy3, game.enemy4, game.enemy5, 
-                      game.enemy6, game.enemy7, game.enemy8, game.enemy9, game.enemy10, 
-                      game.enemy11, game.enemy12]
-        else:  # Level1 có 4 enemies
+        # Kiểm tra với enemies - sử dụng cấu trúc mới đã tối ưu
+        if hasattr(game, 'enemies'):  # Level2 và Level3 đã tối ưu với enemies list
+            enemies = game.enemies
+        elif hasattr(game, 'enemy'):  # Level1 với cấu trúc cũ
             enemies = [game.enemy, game.enemy2, game.enemy3, game.enemy4]
+        else:
+            return False  # Không có enemies
         
         # Kiểm tra collision với enemies và proximity
         for enemy in enemies:
@@ -303,16 +277,8 @@ class Agent:
         self.remember(state, action, reward, next_state, done, td_error)
 
     def get_action(self, state):
-        # Adaptive epsilon với curriculum learning cho Level 2
-        if self.current_difficulty > 2:
-            # Giảm exploration ở difficulty cao
-            exploration_factor = 0.8
-        else:
-            exploration_factor = 1.0
-            
-        adjusted_epsilon = self.epsilon * exploration_factor
-        
-        if random.random() < adjusted_epsilon:
+        # Standard epsilon-greedy action selection
+        if random.random() < self.epsilon:
             move = random.randint(0, 3)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
@@ -364,7 +330,7 @@ def open_video_file(filepath):
     else:  # Linux, ...
         subprocess.run(["xdg-open", full_path])
 
-def train2(game=Level2AI(), num_games=1000):
+def train2(game=Level3AI(), num_games=1000):
     import numpy as np  # Import numpy cho train function
     nw = 0
     plot_scores = []
@@ -378,6 +344,8 @@ def train2(game=Level2AI(), num_games=1000):
         agent.load_state("training_state_enhanced_double_dqn_lv1.pkl")
     elif isinstance(game, Level2AI): 
         agent.load_state("training_state_enhanced_double_dqn_lv2.pkl")
+    elif isinstance(game, Level3AI): 
+        agent.load_state("training_state_enhanced_double_dqn_lv3.pkl")
     
     frames = []
     last_best_video = None
@@ -400,14 +368,12 @@ def train2(game=Level2AI(), num_games=1000):
             game.reset()
             agent.n_games += 1
             
-            # Curriculum learning update
+            # Track wins
             win = (score == 10)
-            agent.update_curriculum(win)
-            
-            # Track consecutive wins cho adaptive epsilon decay
             if win:
                 consecutive_wins += 1
                 nw += 1
+                agent.total_wins += 1
             else:
                 consecutive_wins = 0
             
@@ -445,6 +411,10 @@ def train2(game=Level2AI(), num_games=1000):
                     last_best_video = f"videos1/best_gamelv2_enhanced_double_dqn_{agent.n_games}_score{score}.mp4"
                     save_video_from_frames(frames, last_best_video)
                     delete_old_videos(last_best_video, prefix='best_gamelv2_enhanced_double_dqn_')
+                elif isinstance(game, Level3AI):
+                    last_best_video = f"videos1/best_gamelv3_enhanced_double_dqn_{agent.n_games}_score{score}.mp4"
+                    save_video_from_frames(frames, last_best_video)
+                    delete_old_videos(last_best_video, prefix='best_gamelv3_enhanced_double_dqn_')
             
             frames = []
             plot_scores.append(score)
@@ -458,7 +428,7 @@ def train2(game=Level2AI(), num_games=1000):
                 recent_mean = np.mean(plot_scores[-50:]) if len(plot_scores) >= 50 else mean_score
                 print(f"🎮 Game {agent.n_games}, Score: {score}, Mean: {mean_score:.2f}, Recent: {recent_mean:.2f}")
                 print(f"🏆 Record: {record}, Wins: {nw}/{agent.n_games} ({win_rate:.1%})")
-                print(f"🧠 Difficulty: {agent.current_difficulty}, Epsilon: {agent.epsilon:.3f}, Beta: {agent.beta:.3f}")
+                print(f"🧠 Epsilon: {agent.epsilon:.3f}, Beta: {agent.beta:.3f}")
                 print(f"💾 Memory: {len(agent.memory)}, Consecutive wins: {consecutive_wins}")
                 print("-" * 70)
             
@@ -468,8 +438,10 @@ def train2(game=Level2AI(), num_games=1000):
                     agent.save_state("training_state_enhanced_double_dqn_lv1.pkl")
                 elif isinstance(game, Level2AI): 
                     agent.save_state("training_state_enhanced_double_dqn_lv2.pkl")
+                elif isinstance(game, Level3AI): 
+                    agent.save_state("training_state_enhanced_double_dqn_lv3.pkl")
             
-            plot(plot_scores, plot_mean_scores, "Enhanced Double DQN", nw)
+            plot(plot_scores, plot_mean_scores, "Double DQN", nw)
             
             # Enhanced early stopping conditions
             if agent.n_games >= 200:
@@ -489,6 +461,9 @@ def train2(game=Level2AI(), num_games=1000):
     elif isinstance(game, Level2AI): 
         final_chart_path = f"plots/enhanced_double_dqn_lv2_{num_games}.png"
         agent.save_state("training_state_enhanced_double_dqn_lv2.pkl")
+    elif isinstance(game, Level3AI): 
+        final_chart_path = f"plots/enhanced_double_dqn_lv3_{num_games}.png"
+        agent.save_state("training_state_enhanced_double_dqn_lv3.pkl")
     
     plot(plot_scores, plot_mean_scores, a='Enhanced Double DQN Training Result', nw=nw, save_path=final_chart_path)
     
@@ -502,7 +477,7 @@ def train2(game=Level2AI(), num_games=1000):
     print(f"📊 Best score: {record}")
     print(f"📈 Overall mean score: {mean_score:.2f}")
     print(f"📊 Recent 100 games mean: {recent_100_score:.2f}")
-    print(f"🎚️ Final difficulty: {agent.current_difficulty}")
+
     print(f"🧠 Final epsilon: {agent.epsilon:.4f}")
     print(f"💾 Final memory size: {len(agent.memory)}")
     
