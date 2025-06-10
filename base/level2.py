@@ -1,3 +1,4 @@
+
 import sys
 import pygame
 from player import Player
@@ -71,9 +72,10 @@ class Level2:
         for layer in self.tmx_data.visible_layers:
             if hasattr(layer, 'data'):
                 for x, y, surf in layer.tiles():
-                    pos = (x * 64, y * 64)
-                    self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
-                    # tile_rect = pygame.Rect(x * 64, y * 64, 64, 64)
+                    if surf is not None:
+                        pos = (x * 64, y * 64)
+                        self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
+                        # tile_rect = pygame.Rect(x * 64, y * 64, 64, 64)
 
     def update(self):
         keys = pygame.key.get_pressed()

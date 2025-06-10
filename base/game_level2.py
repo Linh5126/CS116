@@ -9,6 +9,7 @@ from pytmx.util_pygame import load_pygame
 from player import Player
 from enemy import Enemy
 import cv2
+from collections import deque
 
 pygame.init()
 font = pygame.font.Font('arial.ttf', 25)
@@ -37,11 +38,10 @@ class Level2AI:
     def __init__(self, w=1320, h=720):
         self.w = w
         self.h = h
-        
         self.spawnpoint_x = 140
         self.spawnpoint_y = 275
-        self.food_x = 300
-        self.food_y = 436
+        self.food_x = 1102
+        self.food_y = 304
         # init display
         # self.display = pygame.display.set_mode((self.w, self.h))
         self.screen = pygame.display.set_mode((self.w, self.h))
@@ -50,18 +50,6 @@ class Level2AI:
         self.hascollided = False
         self.reset()
         # Enemies
-        self.enemy = Enemy(350, 155, 14, 14, 5, (0, 0, 255))
-        self.enemy2 = Enemy(414, 484, 14, 14, 5, (0, 0, 255))
-        self.enemy3 = Enemy(478, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy4 = Enemy(542, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy5 = Enemy(606, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy6 = Enemy(670, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy7 = Enemy(734, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy8 = Enemy(798, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy9 = Enemy(862, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy10 = Enemy(926, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy11 = Enemy(990, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy12 = Enemy(1054, 484, 14, 14, 5, (0, 0, 255), False)
         # Colliders
         self.toprect = pygame.Rect(0, 0, 300, 320)
         self.collidedtopleft = True
@@ -106,225 +94,318 @@ class Level2AI:
     def setup_tiles(self):
         for layer in self.tmx_data.visible_layers:
             if hasattr(layer, 'data'):
-                if layer.name == "Main":
-                    for x_val, y_val, surf in layer.tiles():
+                # Vẽ tất cả tile (nền, tường, ...)
+                for x_val, y_val, surf in layer.tiles():
+                    if surf is not None:
                         pos = (x_val * 64, y_val * 64)
                         self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
                         self.tile_rect.append(pygame.Rect(x_val * 64, y_val * 64, 64, 64))
-                        self.collider_rects.append(pygame.Rect(x_val * 64, y_val * 64, 64, 64))
-
-        for layer in self.tmx_data.visible_layers:
-            if hasattr(layer, 'data'):
-                for x_val, y_val, surf in layer.tiles():
-                    pos = (x_val * 64, y_val * 64)
-                    self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
+                # Thêm collider cho layer tường
+                if layer.name.lower() == "wall":
+                    for x_val, y_val, surf in layer.tiles():
+                        tile_id = layer.data[y_val][x_val]
+                        if tile_id != 0:  # tile khác 0 là tường
+                            self.collider_rects.append(pygame.Rect(x_val * 64, y_val * 64, 64, 64))
 
     def drawColliders(self):
-        pass
+        for rect in self.collider_rects:
+            pygame.draw.rect(self.screen, (0, 0, 0), rect, 2)
+    
     
     def reset(self):
         
         # init game state
         self.direction = Direction.RIGHT
-
+        self.enemy1 = Enemy(350, 156, 14, 14, 5, (0, 0, 255))
+        self.enemy2 = Enemy(414, 484, 14, 14, 5, (0, 0, 255))
+        self.enemy3 = Enemy(478, 156, 14, 14, 5, (0, 0, 255), False)
+        self.enemy4 = Enemy(542, 484, 14, 14, 5, (0, 0, 255), False)
+        self.enemy5 = Enemy(606, 156, 14, 14, 5, (0, 0, 255), False)
+        self.enemy6 = Enemy(670, 484, 14, 14, 5, (0, 0, 255), False)
+        self.enemy7 = Enemy(734, 156, 14, 14, 5, (0, 0, 255), False)
+        self.enemy8 = Enemy(798, 484, 14, 14, 5, (0, 0, 255), False)
+        self.enemy9 = Enemy(862, 156, 14, 14, 5, (0, 0, 255), False)
+        self.enemy10 = Enemy(926, 484, 14, 14, 5, (0, 0, 255), False)
+        self.enemy11 = Enemy(990, 156, 14, 14, 5, (0, 0, 255), False)
+        self.enemy12 = Enemy(1054, 484, 14, 14, 5, (0, 0, 255), False)
+        for enemy in [ self.enemy1, self.enemy2, self.enemy3, self.enemy4, self.enemy5, self.enemy6, self.enemy7, self.enemy8, self.enemy9, self.enemy10, self.enemy11, self.enemy12] :
+            enemy.enemy_speed = 5
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
         self.snake = [self.head]
-        self.enemy = Enemy(350, 155, 14, 14, 5, (0, 0, 255))
-        self.enemy2 = Enemy(414, 484, 14, 14, 5, (0, 0, 255))
-        self.enemy3 = Enemy(478, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy4 = Enemy(542, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy5 = Enemy(606, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy6 = Enemy(670, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy7 = Enemy(734, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy8 = Enemy(798, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy9 = Enemy(862, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy10 = Enemy(926, 484, 14, 14, 5, (0, 0, 255), False)
-        self.enemy11 = Enemy(990, 155, 14, 14, 5, (0, 0, 255), False)
-        self.enemy12 = Enemy(1054, 484, 14, 14, 5, (0, 0, 255), False)
         self.score = 0
         self.food = None
-        self.food_x = 340 #340
-        self.food_y = 436
+        self.food_x = 1102 #340
+        self.food_y = 304
         self._place_food()
         self.frame_iteration = 0
-
+        self.visited = set()
 
     def _place_food(self):
-        
         self.food = Point(self.food_x, self.food_y)
         self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        self.food_x = 500
-        self.food_y = 436
-        if self.food in self.snake:
-            self._place_food1()
-
-
-    def _place_food1(self):
-        self.food_x = 512
-        self.food_y = 436
-        self.food = Point(self.food_x, self.food_y)
-        self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
+        self.food_x = 1102 #340
+        self.food_y = 304
         
         if self.food in self.snake:
-            self._place_food2()
-    
-    def _place_food2(self):
-        self.food_x = 772
-        self.food_y = 372
-        self.food = Point(self.food_x, self.food_y)
-        self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        
-        if self.food in self.snake:
-            self._place_food3()
-
-    def _place_food3(self):
-        self.food_x = 896
-        self.food_y = 320
-        self.food = Point(self.food_x, self.food_y)
-        self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        
-        if self.food in self.snake:
-            self._place_food4()
-    
-    
-    def _place_food4(self):
-        self.food_x = 914
-        self.food_y = 200
-        self.food = Point(self.food_x, self.food_y)
-        self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        
-        if self.food in self.snake:
-            self._place_food5()
-
-    def _place_food5(self):
-        self.food_x = 1106
-        self.food_y = 200
-        self.food = Point(self.food_x, self.food_y)
-        self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        
-        if self.food in self.snake:
-            self._place_food5()
+            self._place_food()
 
     def play_step(self, action):
         self.frame_iteration += 1
         
-        # 1. collect user input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
         
-        # 2. move
-        self._move(action) # update the head
+        # Lưu thông tin cũ cho reward calculation
+        old_head = self.head
+        old_dist = math.sqrt((self.food.x - old_head.x)**2 + (self.food.y - old_head.y)**2)
+        
+        # Di chuyển
+        self._move(action)
         self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
         self.snake.insert(0, Point(self.head.x, self.head.y))
         
-        # 3. check if game over
-        reward = 0
+        # Enhanced reward system cho Level 2 (khó hơn Level 1)
+        reward = -0.05  # Phạt base cao hơn do Level 2 khó hơn
         game_over = False
-        if self.is_collision() or self.frame_iteration > 10*(self.score+10):
-            self.hascollided = False
+        
+        # Dynamic timeout dựa trên distance to food và difficulty
+        base_timeout = 1000  # Timeout base cao hơn cho Level 2
+        distance_factor = old_dist / 50.0  # Scale factor
+        max_timeout = int(base_timeout + distance_factor * 100)
+        
+        # Kiểm tra timeout với adaptive threshold
+        if self.frame_iteration > max_timeout:
             game_over = True
-            reward = -10
+            reward = -30  # Phạt timeout nặng hơn
             return reward, game_over, self.score
-
-        # 4. place new food or just move
-        food_collide = pygame.Rect.colliderect(self.head_rect, self.food_rect)
-        if food_collide:
-            self.score += 1
-            reward = 20  
-            if self.score == 1:
-                reward += 10
-                self._place_food()
-            elif self.score == 2:
-                reward += 10
-                self._place_food2()
-            elif self.score == 3:
-                reward += 10
-                self._place_food3()
-            elif self.score == 4:
-                reward += 10
-                self._place_food4()
-            elif self.score == 5:
-                reward += 10
-                self._place_food5()
-            elif self.score >= 6:
-                game_over = True
-                reward += 100
-                reward = 100/math.sqrt((self.food.x  - self.head.x)**2 + (self.food.y - self.head.y)**2)  
+        
+        # Kiểm tra va chạm enemy với proximity warning
+        enemy_collision, min_enemy_dist = self._check_enemy_collision_with_distance()
+        if enemy_collision:
+            game_over = True
+            reward = -50  # Phạt va chạm enemy rất nặng cho Level 2
+            return reward, game_over, self.score
+        
+        # Kiểm tra va chạm tường
+        if self.is_collision():
+            game_over = True
+            reward = -25  # Phạt va chạm tường
+            return reward, game_over, self.score
+        
+        # Kiểm tra ăn food (WIN CONDITION)
+        if self.head_rect.colliderect(self.food_rect):
+            self.score += 10
+            # Enhanced win reward cho Level 2
+            base_win_reward = 200  # Thưởng cao hơn Level 1
+            time_bonus = max(0, (max_timeout - self.frame_iteration) / 10)  # Thưởng hoàn thành nhanh
+            efficiency_bonus = max(0, 50 - (self.frame_iteration / 20))  # Thưởng hiệu quả
+            total_reward = base_win_reward + time_bonus + efficiency_bonus
+            
+            reward = total_reward
+            game_over = True
             self.snake.pop()
+            return reward, game_over, self.score
         else:
-            self.snake.pop()            
-            reward = 100/math.sqrt((self.food.x  - self.head.x)**2 + (self.food.y - self.head.y)**2)
-        index = 0
-        pt = self.head
+            self.snake.pop()
+        
+        # Progressive movement rewards
+        new_dist = math.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
+        
+        # Distance-based reward (scaled for Level 2)
+        if new_dist < old_dist:
+            progress_reward = min(1.5, (old_dist - new_dist) / 20.0)  # Thưởng tiến bộ
+            reward += progress_reward
+        else:
+            retreat_penalty = -min(1.0, (new_dist - old_dist) / 25.0)  # Phạt lùi lại
+            reward += retreat_penalty
+        
+        # Enhanced exploration reward cho Level 2
+        if not hasattr(self, 'visited'):
+            self.visited = set()
+        pos_key = (int(self.head.x / 40), int(self.head.y / 40))  # Grid dày hơn cho Level 2
+        if pos_key not in self.visited:
+            reward += 0.2  # Thưởng khám phá cao hơn
+            self.visited.add(pos_key)
+        elif len(self.visited) > 20:  # Phạt quay lại vùng cũ sau khi đã khám phá nhiều
+            reward -= 0.1
+        
+        # Enemy danger awareness rewards cho Level 2
+        danger_bonus = self._calculate_danger_awareness_bonus(min_enemy_dist)
+        reward += danger_bonus
+        
+        # Anti-oscillation penalty cho Level 2
+        self._track_movement_pattern()
+        if hasattr(self, 'movement_history') and len(self.movement_history) >= 6:
+            if self._is_oscillating():
+                reward -= 1.5  # Phạt dao động mạnh hơn Level 1
+        
+        # Phạt đứng yên
+        if self.head == old_head:
+            reward -= 2.0  # Phạt nặng hơn cho Level 2
+        
+        # Strategic positioning bonus (gần safe paths)
+        safe_bonus = self._calculate_safe_positioning_bonus()
+        reward += safe_bonus
+        
+        self._update_colliders()
+        self._update_ui()
+        return reward, game_over, self.score
+
+    def _check_enemy_collision_with_distance(self):
+        """Kiểm tra va chạm enemy và trả về distance tới enemy gần nhất"""
+        head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
+        enemies = [self.enemy1, self.enemy2, self.enemy3, self.enemy4, self.enemy5, 
+                self.enemy6, self.enemy7, self.enemy8, self.enemy9, self.enemy10, 
+                self.enemy11, self.enemy12]
+        
+        min_distance = float('inf')
+        collision = False
+        
+        for enemy in enemies:
+            if head_rect.colliderect(enemy.rect2):
+                collision = True
+            
+            # Tính distance tới enemy center
+            dist = math.sqrt((enemy.rect2.centerx - self.head.x)**2 + 
+                           (enemy.rect2.centery - self.head.y)**2)
+            min_distance = min(min_distance, dist)
+        
+        return collision, min_distance
+
+    def _calculate_danger_awareness_bonus(self, min_enemy_dist):
+        """Tính thưởng dựa trên việc tránh enemy một cách thông minh"""
+        if min_enemy_dist == float('inf'):
+            return 0
+        
+        # Thưởng khi ở khoảng cách an toàn nhưng không quá xa
+        if 80 <= min_enemy_dist <= 120:  # Sweet spot cho Level 2
+            return 0.3
+        elif 50 <= min_enemy_dist < 80:  # Gần nhưng vẫn an toàn
+            return 0.1
+        elif min_enemy_dist < 40:  # Quá gần, nguy hiểm
+            return -0.5
+        elif min_enemy_dist > 200:  # Quá xa, không hiệu quả
+            return -0.1
+        
+        return 0
+
+    def _track_movement_pattern(self):
+        """Track movement pattern để detect oscillation"""
+        if not hasattr(self, 'movement_history'):
+            self.movement_history = deque(maxlen=10)
+            self.previous_head = self.head
+        
+        # Record movement direction
+        if hasattr(self, 'previous_head'):
+            dx = self.head.x - self.previous_head.x
+            dy = self.head.y - self.previous_head.y
+            
+            if dx > 0:
+                direction = 'RIGHT'
+            elif dx < 0:
+                direction = 'LEFT'
+            elif dy > 0:
+                direction = 'DOWN'
+            elif dy < 0:
+                direction = 'UP'
+            else:
+                direction = 'STAY'
+            
+            self.movement_history.append(direction)
+        
+        self.previous_head = self.head
+
+    def _is_oscillating(self):
+        """Kiểm tra xem agent có đang dao động không"""
+        if len(self.movement_history) < 6:
+            return False
+        
+        # Kiểm tra pattern dao động đơn giản
+        recent_moves = list(self.movement_history)[-6:]
+        
+        # Pattern: A-B-A-B-A-B hoặc tương tự
+        if (recent_moves[0] == recent_moves[2] == recent_moves[4] and
+            recent_moves[1] == recent_moves[3] == recent_moves[5] and
+            recent_moves[0] != recent_moves[1]):
+            return True
+        
+        # Pattern: quay lại vị trí cũ
+        if (recent_moves[-1] == 'LEFT' and recent_moves[-2] == 'RIGHT') or \
+           (recent_moves[-1] == 'RIGHT' and recent_moves[-2] == 'LEFT') or \
+           (recent_moves[-1] == 'UP' and recent_moves[-2] == 'DOWN') or \
+           (recent_moves[-1] == 'DOWN' and recent_moves[-2] == 'UP'):
+            return True
+        
+        return False
+
+    def _calculate_safe_positioning_bonus(self):
+        """Thưởng khi ở vị trí strategically safe cho Level 2"""
+        head_x, head_y = self.head.x, self.head.y
+        
+        # Kiểm tra khoảng cách đến boundaries
+        dist_to_left = head_x
+        dist_to_right = self.w - head_x
+        dist_to_top = head_y  
+        dist_to_bottom = self.h - head_y
+        
+        min_boundary_dist = min(dist_to_left, dist_to_right, dist_to_top, dist_to_bottom)
+        
+        # Thưởng khi không quá gần boundary (cho Level 2 cần space để maneuver)
+        if 100 <= min_boundary_dist <= 200:
+            return 0.1
+        elif min_boundary_dist < 50:
+            return -0.2  # Phạt khi quá gần boundary
+        
+        return 0
+
+    def is_collision_enemy(self):
+        """Kiểm tra va chạm với enemy"""
+        head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
+        enemies = [self.enemy1, self.enemy2, self.enemy3, self.enemy4, self.enemy5, 
+                self.enemy6, self.enemy7, self.enemy8, self.enemy9, self.enemy10, 
+                self.enemy11, self.enemy12]
+        
+        for enemy in enemies:
+            if head_rect.colliderect(enemy.rect2):
+                return True
+        return False
+    
+    def is_collision_wall(self, pt=None):
+        """Kiểm tra va chạm với tường hoặc biên map"""
+        if pt is None:
+            pt = self.head
+        
+        # Kiểm tra va chạm biên map
+        if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
+            return True
+        
+        # Kiểm tra tự cắn
+        if pt in self.snake[1:]:
+            return True
+        
+        # Kiểm tra va chạm với tile colliders (nếu có)
+        head_rect = pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE)
+        for rect in self.collider_rects:
+            if head_rect.colliderect(rect):
+                return True
+        
+        return False
+
+    def is_collision(self, pt=None):
+        """Hàm collision tổng hợp cho tương thích với code cũ"""
+        return self.is_collision_wall(pt) or (pt is None and self.is_collision_enemy())
+
+    def _update_colliders(self):
+        """Cập nhật trạng thái va chạm với các collider đặc biệt của level"""
         self.collidedtop1 = pygame.Rect.colliderect(self.head_rect, self.top1rect)
-        # self.collidedleft1 = pygame.Rect.colliderect(self.head_rect, self.left1rect)
         self.collidedleft2 = pygame.Rect.colliderect(self.head_rect, self.left2rect)
-        # self.collidedleft3 = pygame.Rect.colliderect(self.head_rect, self.left3rect)
         self.collidedtopleft = pygame.Rect.colliderect(self.head_rect, self.toprect)
         self.collidedbottomleft = pygame.Rect.colliderect(self.head_rect, self.bottomleftrect)
         self.collidedbot1 = pygame.Rect.colliderect(self.head_rect, self.bot1rect)
         self.collidedbot2 = pygame.Rect.colliderect(self.head_rect, self.bot2rect)
         self.collidedright1 = pygame.Rect.colliderect(self.head_rect, self.right1rect)
-        # 5. update ui and clock
-        self.drawColliders()
-        self._update_ui()
-        # self.clock.tick(SPEED)
-        # 6. return game over and score
-        return reward, game_over, self.score
-
-
-    def is_collision(self, pt=None):
-        if pt is None:
-            pt = self.head
-        # hits boundary
-        if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
-            return True
-        # hits itself
-        if pt in self.snake[1:]:
-            return True
-        if self.hascollided == True:
-            return True
-        self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE*2, BLOCK_SIZE*1.2)
-        collide = pygame.Rect.colliderect(self.head_rect, self.enemy.rect2)
-        if collide:
-            return True
-        collide2 = pygame.Rect.colliderect(self.head_rect, self.enemy2.rect2)
-        if collide2:
-            return True
-        collide3 = pygame.Rect.colliderect(self.head_rect, self.enemy3.rect2)
-        if collide3:
-            return True
-        collide4 = pygame.Rect.colliderect(self.head_rect, self.enemy4.rect2)
-        if collide4:
-            return True
-        collide5 = pygame.Rect.colliderect(self.head_rect, self.enemy5.rect2)
-        if collide5:
-            return True
-        collide6 = pygame.Rect.colliderect(self.head_rect, self.enemy6.rect2)
-        if collide6:
-            return True
-        collide7 = pygame.Rect.colliderect(self.head_rect, self.enemy7.rect2)
-        if collide7:
-            return True
-        collide8 = pygame.Rect.colliderect(self.head_rect, self.enemy8.rect2)
-        if collide8:
-            return True
-        collide9 = pygame.Rect.colliderect(self.head_rect, self.enemy9.rect2)
-        if collide9:
-            return True
-        collide10 = pygame.Rect.colliderect(self.head_rect, self.enemy10.rect2)
-        if collide10:
-            return True
-        collide11 = pygame.Rect.colliderect(self.head_rect, self.enemy11.rect2)
-        if collide11:
-            return True
-        collide12 = pygame.Rect.colliderect(self.head_rect, self.enemy12.rect2)
-        if collide12:
-            return True
-        return False
-
 
     def _update_ui(self):
         
@@ -348,7 +429,7 @@ class Level2AI:
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(300, 200, 25, 300), 2) #Left3
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(1088, 384, 25, 128), 2) # Right1
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(900, 170, 320, 30), 2) # Right2
-        self.enemy.move2(155, 484)
+        self.enemy1.move2(155, 484)
         self.enemy2.move2(155, 484)
         self.enemy3.move2(155, 484)
         self.enemy4.move2(155, 484)
@@ -360,7 +441,7 @@ class Level2AI:
         self.enemy10.move2(155, 484)
         self.enemy11.move2(155, 484)
         self.enemy12.move2(155, 484)
-        self.enemy.draw(self.screen)
+        self.enemy1.draw(self.screen)
         self.enemy2.draw(self.screen)
         self.enemy3.draw(self.screen)
         self.enemy4.draw(self.screen)
@@ -384,7 +465,6 @@ class Level2AI:
 
     def _move(self, action):
         # [right, down, left, up]
-        self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE*2, BLOCK_SIZE*1.2)  
         clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
         if np.array_equal(action, [1, 0, 0, 0]):
             new_dir = clock_wise[0] # right
@@ -399,25 +479,8 @@ class Level2AI:
 
         x = self.head.x
         y = self.head.y
-        if self.collidedtopleft or self.collidedtop1:
-            y += SPEED*2
-            reward = -1
-        if self.collidedbottomleft or self.collidedbot2:
-            y -= SPEED*2
-            reward = -1
-        if self.collidedleft1:
-            x -= SPEED*2
-        if self.collidedright1:
-            x -= SPEED*2 
-            y -= SPEED*2
-        if self.collidedbot1 or self.collidedright2:
-            x += SPEED*2
-            y += SPEED*2
-        if self.collidedbot3:
-            x -= SPEED*2
-            y += SPEED*2
-        if self.collidedleft2 or self.collidedleft3:
-            x += SPEED*2
+        
+        # Di chuyển theo hướng đã chọn
         if self.direction == Direction.RIGHT:
             x += SPEED
         elif self.direction == Direction.LEFT:
@@ -426,7 +489,7 @@ class Level2AI:
             y += SPEED
         elif self.direction == Direction.UP:
             y -= SPEED
-
+            
         self.head = Point(x, y)
         self.head_rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
     def get_frame(self):

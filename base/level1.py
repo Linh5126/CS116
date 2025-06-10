@@ -56,17 +56,23 @@ class Level1:
             if hasattr(layer, 'data'):
                 if layer.name == "Main":
                     for x, y, surf in layer.tiles():
-                        pos = (x * 64, y * 64)
-                        self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
-                        self.tile_rect.append(pygame.Rect(x * 64, y * 64, 64, 64))
-                        self.collider_rects.append(pygame.Rect(x * 64, y * 64, 64, 64))
+                        if surf is not None:
+                            pos = (x * 64, y * 64)
+                            self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
+                            self.tile_rect.append(pygame.Rect(x * 64, y * 64, 64, 64))
+                            self.collider_rects.append(pygame.Rect(x * 64, y * 64, 64, 64))
 
         for layer in self.tmx_data.visible_layers:
             if hasattr(layer, 'data'):
                 for x, y, surf in layer.tiles():
-                    pos = (x * 64, y * 64)
-                    self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
-                    # tile_rect = pygame.Rect(x * 64, y * 64, 64, 64)
+                    if surf is not None:
+                        pos = (x * 64, y * 64)
+                        self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
+        
+        self.enemy.enemy_speed = 4
+        self.enemy2.enemy_speed = 4  
+        self.enemy3.enemy_speed = 4
+        self.enemy4.enemy_speed = 4
 
     def update(self):
         keys = pygame.key.get_pressed()
