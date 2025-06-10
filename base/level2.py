@@ -39,6 +39,18 @@ class Level2:
         self.enemy10 = Enemy(926, 484, 14, 14, 5, (0, 0, 255), False)
         self.enemy11 = Enemy(990, 155, 14, 14, 5, (0, 0, 255), False)
         self.enemy12 = Enemy(1054, 484, 14, 14, 5, (0, 0, 255), False)
+        self.enemy.enemy_speed = 5
+        self.enemy2.enemy_speed = 5
+        self.enemy3.enemy_speed = 5
+        self.enemy4.enemy_speed = 5
+        self.enemy5.enemy_speed = 5
+        self.enemy6.enemy_speed = 5
+        self.enemy7.enemy_speed = 5
+        self.enemy8.enemy_speed = 5
+        self.enemy9.enemy_speed = 5
+        self.enemy10.enemy_speed = 5
+        self.enemy11.enemy_speed = 5
+        self.enemy12.enemy_speed = 5
         self.tile_rect = []
         self.enemyrect = pygame.Rect(self.enemy.player_x, self.enemy.player_y, 14, 14)
         self.collider_rects = []  # List of tile colliders
@@ -98,6 +110,18 @@ class Level2:
         self.enemy10.move2(155, 484)
         self.enemy11.move2(155, 484)
         self.enemy12.move2(155, 484)
+        self.enemy.enemy_speed = 5
+        self.enemy2.enemy_speed = 5
+        self.enemy3.enemy_speed = 5
+        self.enemy4.enemy_speed = 5
+        self.enemy5.enemy_speed = 5
+        self.enemy6.enemy_speed = 5
+        self.enemy7.enemy_speed = 5
+        self.enemy8.enemy_speed = 5
+        self.enemy9.enemy_speed = 5
+        self.enemy10.enemy_speed = 5
+        self.enemy11.enemy_speed = 5
+        self.enemy12.enemy_speed = 5
         self.right_point = pygame.Rect(self.player.player_x + self.player.width, self.player.player_y + self.player.width / 2, 1, 1)
         self.left_point = pygame.Rect(self.player.player_x - 4, self.player.player_y + self.player.width / 2, 5, 5)
         self.up_point = pygame.Rect(self.player.player_x + self.player.width / 2, self.player.player_y -1 , 1, 1)

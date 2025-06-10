@@ -34,7 +34,7 @@ pygame.display.set_caption("Main Menu")
 
 # Main menu options
 main_menu_options = ["Play as Human", "DQN AI", "DOUBLE DQN AI", "Quit"]
-level_options = ["Level 1", "Level 2"]
+level_options = ["Level 1", "Level 2", "Level 3"]
 selected_option = 0
 
 # Current screen flag

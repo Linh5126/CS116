@@ -38,10 +38,12 @@ class Level3:
         self.tile_rect = []
         self.collider_rects = []
         self.color = (255, 0, 0)
-        self.red_rect = pygame.Rect(570, 160, 50, 50)
-        self.red_rect.topleft = (570, 160)
+        self.red_rect = pygame.Rect(570, 180, 50, 50)
+        self.red_rect.topleft = (570, 180)
         self.left_point = pygame.Rect(self.player.player_x + self.player.width, self.player.player_y + self.player.width / 2, 5, 5)
         self.left_point.topleft = (self.player.player_x + self.player.width, self.player.player_y + self.player.width)
+        self.right_point = pygame.Rect(self.player.player_x - 1, self.player.player_y + self.player.width / 2, 1, 1)
+        self.right_point.topleft = (self.player.player_x - 1, self.player.player_y + self.player.width / 2)
         self.up_point = pygame.Rect(self.player.player_x + self.player.width / 2, self.player.player_y - 1, 1, 1)
         self.up_point.topleft = (self.player.player_x + self.player.width / 2, self.player.player_y - 1)
         self.down_point = pygame.Rect(self.player.player_x + self.player.width / 2, self.player.player_y + self.player.width, 1, 1)
@@ -81,11 +83,13 @@ class Level3:
             self.is_running = False
             return
         self.player.move(keys)
-
+        for enemy in self.enemies:
+            enemy.enemy_speed = 5
         for enemy in self.enemies:
             enemy.move3(608, 800, 285, 480)
 
-        self.left_point = pygame.Rect(self.player.player_x + self.player.width, self.player.player_y + self.player.width / 2, 1, 1)
+        self.left_point = pygame.Rect(self.player.player_x + self.player.width, self.player.player_y + self.player.width / 2, 5, 5)
+        self.right_point = pygame.Rect(self.player.player_x - 1, self.player.player_y + self.player.width / 2, 1, 1)
         self.up_point = pygame.Rect(self.player.player_x + self.player.width / 2, self.player.player_y - 1, 1, 1)
         self.down_point = pygame.Rect(self.player.player_x + self.player.width / 2, self.player.player_y + self.player.width, 1, 1)
 
@@ -104,6 +108,7 @@ class Level3:
         self.player.player_y = self.spawnpoint_y
 
     def drawColliders(self):
+        # Kiểm tra va chạm với các tile
         for index, b in enumerate(self.tile_rect):
             cleft_point = pygame.Rect.colliderect(self.left_point, self.collider_rects[index])
             if cleft_point:
@@ -111,6 +116,13 @@ class Level3:
                 self.player.can_move_left = False
             elif not cleft_point:
                 self.player.can_move_left = True
+
+            cright_point = pygame.Rect.colliderect(self.right_point, self.collider_rects[index])
+            if cright_point:
+                self.player.player_x += 5
+                self.player.can_move_right = False
+            elif not cright_point:
+                self.player.can_move_right = True
 
             c_up_point = pygame.Rect.colliderect(self.up_point, self.collider_rects[index])
             if c_up_point:
@@ -125,6 +137,16 @@ class Level3:
                 self.player.can_move_down = False
             elif not c_down_point:
                 self.player.can_move_down = True
+
+        # Kiểm tra giới hạn màn hình
+        if self.player.player_x < 0:
+            self.player.player_x = 0
+        if self.player.player_x + self.player.width > self.screen_w:
+            self.player.player_x = self.screen_w - self.player.width
+        if self.player.player_y < 0:
+            self.player.player_y = 0
+        if self.player.player_y + self.player.height > self.screen_h:
+            self.player.player_y = self.screen_h - self.player.height
 
     def draw(self):
         if self.islevel3:
