@@ -299,12 +299,12 @@ def open_video_file(filepath):
     else:  # Linux, ...
         subprocess.run(["xdg-open", full_path])
 
-def train(game=Level2AI(), num_games=1000):
+def train(game=Level1AI(), num_games=1000):
     nw = 0
-    plot_scores = []
-    plot_mean_scores = []
-    total_score = 0
-    record = 0
+    plot_rewards = []
+    plot_mean_rewards = []
+    total_reward = 0
+    record = 0  
     agent = Agent()
     
     # Load previous state
@@ -394,10 +394,10 @@ def train(game=Level2AI(), num_games=1000):
                 print(f"🏆 Kỷ lục mới! Score: {score}")
             
             frames = []
-            plot_scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.n_games
-            plot_mean_scores.append(mean_score)
+            plot_rewards.append(reward)
+            total_reward += reward
+            mean_reward = total_reward / agent.n_games
+            plot_mean_rewards.append(mean_reward)
             
             # Enhanced progress reporting
             if agent.n_games % 50 == 0:
@@ -406,7 +406,7 @@ def train(game=Level2AI(), num_games=1000):
                 current_lr = agent.trainer.optimizer.param_groups[0]['lr']
                 
                 print(f"🎮 Game {agent.n_games}")
-                print(f"   📈 Score: {score}, Mean: {mean_score:.2f}, Recent Mean: {recent_mean:.2f}")
+                print(f"   📈 Score: {score}, Reward: {reward:.2f}, Mean Reward: {mean_reward:.2f}, Recent Mean: {recent_mean:.2f}")
                 print(f"   🏅 Record: {record}, Wins: {nw} ({win_rate:.1%})")
                 print(f"   🎚️ Epsilon: {agent.epsilon:.3f}")
                 print(f"   📚 Learning Rate: {current_lr:.6f}, Memory: {len(agent.memory)}")
@@ -421,7 +421,7 @@ def train(game=Level2AI(), num_games=1000):
                 elif isinstance(game, Level3AI): 
                     agent.save_state("training_state_dqn_lv3.pkl")
             
-            plot(plot_scores, plot_mean_scores, 'DQN Training', nw)
+            plot(plot_rewards, plot_mean_rewards, 'DQN Training - Rewards', nw)
             
             # Early stopping conditions
             if agent.n_games >= 200:
@@ -448,8 +448,8 @@ def train(game=Level2AI(), num_games=1000):
         final_chart_path = f"plots/dqn_lv3_curriculum_{num_games}.png"
         agent.save_state("training_state_dqn_lv3.pkl")
     
-    plot(plot_scores, plot_mean_scores, 
-         a='DQN Training Results', 
+    plot(plot_rewards, plot_mean_rewards, 
+         a='DQN Training Results - Rewards', 
          nw=nw, save_path=final_chart_path)
     
     # Detailed final statistics
@@ -463,7 +463,7 @@ def train(game=Level2AI(), num_games=1000):
     print(f"   🏆 Tổng victories: {nw}/{agent.n_games} ({final_win_rate:.1%})")
     print(f"   📈 Recent win rate (50 games cuối): {recent_win_rate:.1%}")
     print(f"   🎯 Best score: {record}")
-    print(f"   📊 Final mean score: {mean_score:.2f}")
+    print(f"   📊 Final mean reward: {mean_reward:.2f}")
     print(f"   🧠 Final epsilon: {agent.epsilon:.3f}")
     print(f"   💾 Memory size: {len(agent.memory)}")
     
@@ -474,7 +474,7 @@ def train(game=Level2AI(), num_games=1000):
         except:
             pass
     
-    return plot_mean_scores, nw
+    return plot_mean_rewards, nw
 
     
 if __name__ == '__main__':

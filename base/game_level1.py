@@ -29,7 +29,7 @@ BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 BLOCK_SIZE = 32
-SPEED = 15
+SPEED = 10
 reward = 0
 
 class Level1AI:
@@ -128,7 +128,7 @@ class Level1AI:
             self._place_food()
 
     def set_enemy_speeds(self):
-        """Set tất cả enemies speed = 4"""
+        """Set tất cả enemies speed = 4 - balanced với agent speed 10"""
         self.enemy.enemy_speed = 4
         self.enemy2.enemy_speed = 4
         self.enemy3.enemy_speed = 4

@@ -25,14 +25,16 @@ class Level3:
         self.player = Player(self.spawnpoint_x, self.spawnpoint_y, 37, 37, 5)
         self.enemies = [
             Enemy(608, 285, 14, 14, direction=1),
-            Enemy(608, 350, 14, 14, direction=4),
+            #Enemy(608, 350, 14, 14, direction=4),
             Enemy(608, 415, 14, 14, direction=4),
-            Enemy(608, 480, 14, 14, direction=4),
+            #Enemy(608, 480, 14, 14, direction=4),
             Enemy(672, 480, 14, 14, direction=3),
-            Enemy(736, 480, 14, 14, direction=3),
+            #Enemy(736, 480, 14, 14, direction=3),
             Enemy(800, 480, 14, 14, direction=2),
-            Enemy(800, 415, 14, 14, direction=2),
-            # Đã xóa 2 enemies: Enemy(800, 350) và Enemy(800, 285)
+            #Enemy(800, 415, 14, 14, direction=2),
+            Enemy(800, 350, 14, 14, direction=2),
+            #Enemy(800, 285, 14, 14, direction=2),
+            Enemy(736, 285, 14, 14, direction=1)
         ]
 
         self.tile_rect = []
@@ -84,7 +86,7 @@ class Level3:
             return
         self.player.move(keys)
         for enemy in self.enemies:
-            enemy.enemy_speed = 5
+            enemy.enemy_speed = 4
         for enemy in self.enemies:
             enemy.move3(608, 800, 285, 480)
 

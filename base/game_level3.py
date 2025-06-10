@@ -28,7 +28,7 @@ BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 BLOCK_SIZE = 32
-SPEED = 15
+SPEED = 10
 reward = 0
 
 class Level3AI:
@@ -93,22 +93,24 @@ class Level3AI:
             pygame.draw.rect(self.screen, (255, 0, 0), rect, 2)
     
     def reset(self):
-        # init game state - khởi tạo lại enemies
+        # init game state - đặt enemies ở vị trí strategic
         self.enemies = [
             Enemy(608, 285, 14, 14, direction=1),
-            Enemy(608, 350, 14, 14, direction=4),
+            #Enemy(608, 350, 14, 14, direction=4),
             Enemy(608, 415, 14, 14, direction=4),
-            Enemy(608, 480, 14, 14, direction=4),
+            #Enemy(608, 480, 14, 14, direction=4),
             Enemy(672, 480, 14, 14, direction=3),
-            Enemy(736, 480, 14, 14, direction=3),
+            #Enemy(736, 480, 14, 14, direction=3),
             Enemy(800, 480, 14, 14, direction=2),
-            Enemy(800, 415, 14, 14, direction=2),
-            # Đã xóa 2 enemies: Enemy(800, 350) và Enemy(800, 285)
+            #Enemy(800, 415, 14, 14, direction=2),
+            Enemy(800, 350, 14, 14, direction=2),
+            #Enemy(800, 285, 14, 14, direction=2),
+            Enemy(736, 285, 14, 14, direction=1)
         ]
         self.set_enemy_speeds()
         
-        # Tất cả enemies đều active với speed = 5
-        self.active_enemies = self.enemies  # Đơn giản hóa - dùng trực tiếp enemies list
+        # Tất cả enemies đều active
+        self.active_enemies = self.enemies
         
         self.direction = Direction.RIGHT
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
@@ -131,7 +133,7 @@ class Level3AI:
 
     def set_enemy_speeds(self):
         for enemy in self.enemies:
-            enemy.enemy_speed = 5  # Sửa speed thành 5 như comment đã nói
+            enemy.enemy_speed = 5  # Speed cao hơn cho Level 3 - balanced với agent speed 10
 
     def play_step(self, action):
         self.frame_iteration += 1
@@ -151,8 +153,8 @@ class Level3AI:
         self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
         self.snake.insert(0, Point(self.head.x, self.head.y))
         
-        # SIMPLE REWARD SYSTEM cho 8 enemies speed = 5
-        reward = -0.003  # Base penalty
+        # REWARD SYSTEM cho 6 enemies với pattern cụ thể
+        reward = -0.0025  # Base penalty điều chỉnh cho 6 enemies
         game_over = False
         
         # Fixed timeout cho single difficulty
@@ -165,10 +167,10 @@ class Level3AI:
             reward = -8  # Smaller timeout penalty
             return reward, game_over, self.score
         
-        # Enemy collision penalty - khó tránh hơn với 8 enemies
+        # Enemy collision penalty - trung bình với 6 enemies có pattern
         if self.is_collision_enemy():
             game_over = True
-            reward = -12  # Reasonable penalty cho 8 enemies
+            reward = -11  # Penalty vừa phải cho 6 enemies có pattern
             return reward, game_over, self.score
         
         # Wall collision penalty
@@ -177,14 +179,14 @@ class Level3AI:
             reward = -6  # Smaller wall penalty
             return reward, game_over, self.score
         
-        # WIN CONDITION - Fixed bonus cho 8 enemies speed = 5
+        # WIN CONDITION - Bonus cho 6 enemies với pattern strategic
         if self.head_rect.colliderect(self.food_rect):
             self.score += 10
-            # SIMPLE WIN REWARDS
-            base_reward = 200  # Fixed large reward
+            # WIN REWARDS điều chỉnh cho 6 enemies
+            base_reward = 190  # Reward tăng lên phù hợp với 6 enemies
             time_bonus = max(0, (timeout_limit - self.frame_iteration) * 0.2)
             efficiency_bonus = max(0, (600 - self.steps_in_episode) * 0.1)
-            survival_bonus = 50  # Bonus for surviving 8 fast enemies
+            survival_bonus = 45  # Bonus tăng cho 6 enemies
             
             total_reward = base_reward + time_bonus + efficiency_bonus + survival_bonus
             reward = total_reward
@@ -219,7 +221,7 @@ class Level3AI:
             reward += exploration_bonus
             self.visited.add(pos_key)
         
-        # ENHANCED CHECKPOINT REWARDS cho 8 enemies
+        # ENHANCED CHECKPOINT REWARDS cho 6 enemies với pattern
         checkpoint_bonus = self._get_checkpoint_bonus()
         reward += checkpoint_bonus
         
@@ -233,7 +235,7 @@ class Level3AI:
             if self._is_simple_oscillating():
                 reward -= 2.5
         
-        # ENHANCED enemy proximity awareness cho 8 enemies
+        # ENHANCED enemy proximity awareness cho 6 enemies với pattern
         enemy_bonus = self._get_enemy_awareness_bonus()
         reward += enemy_bonus
         
@@ -241,23 +243,25 @@ class Level3AI:
         return reward, game_over, self.score
 
     def _get_checkpoint_bonus(self):
-        """Reward cho reaching key map areas - với 8 enemies active"""
+        """Reward cho reaching key map areas - với 6 enemies có pattern cụ thể"""
         x, y = self.head.x, self.head.y
         
-        # Checkpoint areas trong map - khó hơn vì có 8 enemies
-        if 300 <= x <= 500 and 200 <= y <= 500:  # Entered main corridor
-            return 1.0  # Increased bonus vì có 8 enemies
-        elif 500 <= x <= 750 and 200 <= y <= 500:  # Middle danger zone
-            return 2.0  # Bonus lớn vì đây là danger zone 
-        elif 750 <= x <= 950 and 200 <= y <= 500:  # Past enemies zone
-            return 3.0  # Bonus rất lớn vì đã qua zone enemies
-        elif 950 <= x <= 1200 and 150 <= y <= 350:  # Goal area
-            return 5.0  # Bonus lớn nhất
+        # Checkpoint areas dựa trên enemy positions và strategic paths
+        if 300 <= x <= 580 and 200 <= y <= 500:  # Approach left enemies zone  
+            return 1.0  # Entry bonus
+        elif 580 <= x <= 650 and 280 <= y <= 420:  # Navigate through left enemies (608,285 & 608,415)
+            return 2.0  # Navigating main danger zone
+        elif 650 <= x <= 750 and 280 <= y <= 500:  # Middle passage area
+            return 1.5  # Safe middle zone
+        elif 750 <= x <= 850 and 280 <= y <= 500:  # Navigate right enemies zone (800,480 & 800,350)
+            return 2.5  # Right danger zone navigation
+        elif 500 <= x <= 650 and 200 <= y <= 300:  # Approach goal area (food at 590,210)
+            return 3.0  # Near goal bonus
         
         return 0.0
 
     def _get_enemy_awareness_bonus(self):
-        """Enhanced bonus cho smart enemy avoidance - với 8 enemies"""
+        """Enhanced bonus cho smart enemy avoidance - với 6 enemies có pattern"""
         if not hasattr(self, 'active_enemies'):
             return 0.0
             
@@ -274,27 +278,30 @@ class Level3AI:
         min_enemy_dist = min(enemy_distances)
         avg_enemy_dist = sum(enemy_distances) / len(enemy_distances)
         
-        # ENHANCED DANGER AWARENESS với 8 enemies
+        # ENHANCED DANGER AWARENESS với 6 enemies có pattern cụ thể
         bonus = 0.0
         
-        # Reward for maintaining safe minimum distance
-        if min_enemy_dist >= 80:  # Safe from closest enemy
-            bonus += 0.4
-        elif min_enemy_dist >= 60:  # Reasonable distance
+        # Reward for maintaining safe minimum distance với 6 enemies
+        if min_enemy_dist >= 75:  # Safe from closest enemy
+            bonus += 0.35
+        elif min_enemy_dist >= 55:  # Reasonable distance 
             bonus += 0.2
         elif min_enemy_dist < 40:  # Too close to any enemy
-            bonus -= 1.5  # Strong penalty
+            bonus -= 1.2  # Penalty tăng cho 6 enemies
         
-        # Bonus for good average distance from all enemies
-        if avg_enemy_dist >= 100:
-            bonus += 0.3
-        elif avg_enemy_dist >= 80:
-            bonus += 0.1
+        # Bonus for good average distance với 6 enemies
+        if avg_enemy_dist >= 95:
+            bonus += 0.25
+        elif avg_enemy_dist >= 75:
+            bonus += 0.15
         
-        # Extra bonus for navigating through enemy zone safely
-        enemy_zone_x = 600 <= self.head.x <= 700  # Main enemy zone
-        if enemy_zone_x and min_enemy_dist >= 70:
-            bonus += 0.5  # Navigating safely through danger zone
+        # Special bonus cho việc navigate qua dense enemy areas
+        # Check if in main enemy corridor (608,285 to 608,415) or right side (800,350 to 800,480)
+        in_left_danger = 580 <= self.head.x <= 630 and 270 <= self.head.y <= 430
+        in_right_danger = 780 <= self.head.x <= 820 and 340 <= self.head.y <= 490
+        
+        if (in_left_danger or in_right_danger) and min_enemy_dist >= 65:
+            bonus += 0.4  # High bonus for safely navigating dense areas
         
         return bonus
 
@@ -395,15 +402,15 @@ class Level3AI:
         # Draw food
         pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
         
-        # Draw and move ALL enemies với optimized patterns
+        # Draw and move ALL enemies với strategic patterns
         for enemy in self.enemies:
-            enemy.move3(608, 800, 285, 480)
+            enemy.move3(608, 800, 285, 480)  # Adjusted movement boundaries
         for enemy in self.enemies:
             enemy.draw(self.screen)
         
         # Collision detection được handle trong play_step(), không cần ở đây
         # Simple UI 
-        text = font.render(f"Score: {self.score} | Steps: {self.steps_in_episode} | {len(self.active_enemies)} Fast Enemies", True, WHITE)
+        text = font.render(f"Score: {self.score} | Steps: {self.steps_in_episode} | {len(self.active_enemies)} Pattern Enemies", True, WHITE)
         self.screen.blit(text, [0, 0])
         
         # Progress indicator

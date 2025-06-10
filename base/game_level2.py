@@ -29,7 +29,7 @@ BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 BLOCK_SIZE = 32
-SPEED = 15
+SPEED = 10
 reward = 0
 
 class Level2AI:
@@ -134,7 +134,7 @@ class Level2AI:
         ]
         
         # Set enemy speeds
-        self.set_enemy_speeds(5)
+        self.set_enemy_speeds(4)
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
         self.snake = [self.head]
         self.score = 0
@@ -145,8 +145,8 @@ class Level2AI:
         self.frame_iteration = 0
         self.visited = set()
 
-    def set_enemy_speeds(self, speed=5):
-        """Set speed cho tất cả enemies"""
+    def set_enemy_speeds(self, speed=4):
+        """Set speed cho tất cả enemies - balanced với agent speed 10"""
         for enemy in self.enemies:
             enemy.enemy_speed = speed
     

@@ -69,10 +69,10 @@ class Level1:
                         pos = (x * 64, y * 64)
                         self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
         
-        self.enemy.enemy_speed = 4
-        self.enemy2.enemy_speed = 4  
-        self.enemy3.enemy_speed = 4
-        self.enemy4.enemy_speed = 4
+        self.enemy.enemy_speed = 3
+        self.enemy2.enemy_speed = 3  
+        self.enemy3.enemy_speed = 3
+        self.enemy4.enemy_speed = 3
 
     def update(self):
         keys = pygame.key.get_pressed()

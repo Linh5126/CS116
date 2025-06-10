@@ -330,14 +330,18 @@ def open_video_file(filepath):
     else:  # Linux, ...
         subprocess.run(["xdg-open", full_path])
 
-def train2(game=Level3AI(), num_games=1000):
+def train2(game=Level1AI(), num_games=1000):
     import numpy as np  # Import numpy cho train function
+    from collections import deque  # Import deque
     nw = 0
-    plot_scores = []
-    plot_mean_scores = []
-    total_score = 0
+    plot_rewards = []
+    plot_mean_rewards = []
+    total_reward = 0
     record = 0
     agent = Agent()
+    
+    # Track scores separately for win rate calculation
+    recent_scores = deque(maxlen=100)
     
     # Load previous state
     if isinstance(game, Level1AI): 
@@ -417,16 +421,19 @@ def train2(game=Level3AI(), num_games=1000):
                     delete_old_videos(last_best_video, prefix='best_gamelv3_enhanced_double_dqn_')
             
             frames = []
-            plot_scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.n_games
-            plot_mean_scores.append(mean_score)
+            plot_rewards.append(reward)
+            total_reward += reward
+            mean_reward = total_reward / agent.n_games
+            plot_mean_rewards.append(mean_reward)
+            
+            # Track scores for win rate calculation
+            recent_scores.append(score)
             
             # Enhanced progress tracking
             if agent.n_games % 50 == 0:
                 win_rate = nw / agent.n_games
-                recent_mean = np.mean(plot_scores[-50:]) if len(plot_scores) >= 50 else mean_score
-                print(f"🎮 Game {agent.n_games}, Score: {score}, Mean: {mean_score:.2f}, Recent: {recent_mean:.2f}")
+                recent_mean_reward = np.mean(plot_rewards[-50:]) if len(plot_rewards) >= 50 else mean_reward
+                print(f"🎮 Game {agent.n_games}, Score: {score}, Reward: {reward:.2f}, Mean Reward: {mean_reward:.2f}, Recent: {recent_mean_reward:.2f}")
                 print(f"🏆 Record: {record}, Wins: {nw}/{agent.n_games} ({win_rate:.1%})")
                 print(f"🧠 Epsilon: {agent.epsilon:.3f}, Beta: {agent.beta:.3f}")
                 print(f"💾 Memory: {len(agent.memory)}, Consecutive wins: {consecutive_wins}")
@@ -441,11 +448,13 @@ def train2(game=Level3AI(), num_games=1000):
                 elif isinstance(game, Level3AI): 
                     agent.save_state("training_state_enhanced_double_dqn_lv3.pkl")
             
-            plot(plot_scores, plot_mean_scores, "Double DQN", nw)
+            plot(plot_rewards, plot_mean_rewards, "Double DQN - Rewards", nw)
             
             # Enhanced early stopping conditions
             if agent.n_games >= 200:
-                recent_win_rate = sum(plot_scores[-100:]) / 1000  # Last 100 games win rate
+                # Sử dụng scores để tính win rate đúng cách
+                recent_wins = sum(1 for s in recent_scores if s >= 10)
+                recent_win_rate = recent_wins / len(recent_scores) if recent_scores else 0
                 if recent_win_rate >= 0.85:  # 85% win rate in recent games
                     print(f"🎯 Early stopping! High recent win rate achieved: {recent_win_rate:.1%}")
                     break
@@ -465,23 +474,23 @@ def train2(game=Level3AI(), num_games=1000):
         final_chart_path = f"plots/enhanced_double_dqn_lv3_{num_games}.png"
         agent.save_state("training_state_enhanced_double_dqn_lv3.pkl")
     
-    plot(plot_scores, plot_mean_scores, a='Enhanced Double DQN Training Result', nw=nw, save_path=final_chart_path)
+    plot(plot_rewards, plot_mean_rewards, a='Enhanced Double DQN Training Result - Rewards', nw=nw, save_path=final_chart_path)
     
     # Enhanced final statistics
     final_win_rate = nw / agent.n_games
-    recent_100_score = np.mean(plot_scores[-100:]) if len(plot_scores) >= 100 else mean_score
+    recent_100_reward = np.mean(plot_rewards[-100:]) if len(plot_rewards) >= 100 else mean_reward
     
     print(f"\n🎯 ===== TRAINING COMPLETED =====")
     print(f"🎮 Total games: {agent.n_games}")
     print(f"🏆 Total victories: {nw} ({final_win_rate:.1%})")
     print(f"📊 Best score: {record}")
-    print(f"📈 Overall mean score: {mean_score:.2f}")
-    print(f"📊 Recent 100 games mean: {recent_100_score:.2f}")
+    print(f"📈 Overall mean reward: {mean_reward:.2f}")
+    print(f"📊 Recent 100 games mean reward: {recent_100_reward:.2f}")
 
     print(f"🧠 Final epsilon: {agent.epsilon:.4f}")
     print(f"💾 Final memory size: {len(agent.memory)}")
     
-    return plot_mean_scores, nw
+    return plot_mean_rewards, nw
 
 if __name__ == '__main__':
     train2()
