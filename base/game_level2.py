@@ -40,39 +40,16 @@ class Level2AI:
         # Spawn point và food position được tối ưu cho Level 2
         self.spawnpoint_x = 140
         self.spawnpoint_y = 275
-        self.food_x = 300
-        self.food_y = 460
+        self.food_x = 350
+        self.food_y = 272
         # init display
         # self.display = pygame.display.set_mode((self.w, self.h))
         self.screen = pygame.display.set_mode((self.w, self.h))
-        pygame.display.set_caption('Worlds Hardest Game')
+        pygame.display.set_caption('Worlds Hardest Game - Level 2')
         self.clock = pygame.time.Clock()
         self.hascollided = False
         self.reset()
         # Enemies
-        # Colliders
-        self.toprect = pygame.Rect(0, 0, 300, 320)
-        self.collidedtopleft = True
-        self.top1rect = pygame.Rect(300, 128, 768, 40)
-        self.collidedtop1= False
-        self.bottomleftrect = pygame.Rect(0, 384, 320, 50)
-        self.collidedbottomleft = False
-        # self.left1rect = pygame.Rect(250, 200, 50, 300)
-        self.collidedleft1 = False
-        self.left2rect = pygame.Rect(50, 200, 256, 400)
-        self.collidedleft2 = False
-        # self.left3rect = pygame.Rect(300, 200, 25, 300)
-        self.collidedleft3 = False
-        self.bot1rect = pygame.Rect(250, 500, 70, 20)
-        self.collidedbot1 = False
-        self.bot2rect = pygame.Rect(320, 505, 792, 20)
-        self.collidedbot2 = False
-        self.bot3rect = pygame.Rect(374, 512, 60, 70)
-        self.collidedbot3 = False
-        self.right1rect = pygame.Rect(1088, 384, 25, 128)
-        self.collidedright1 = False
-        self.right2rect = pygame.Rect(900, 170, 320, 30)
-        self.collidedright2 = False
         # for tiles
         self.tmx_data = load_pygame('Tiles/Level2.tmx')
         self.sprite_group = pygame.sprite.Group()
@@ -92,20 +69,23 @@ class Level2AI:
 
 
     def setup_tiles(self):
+        """Setup tiles from TMX map"""
         for layer in self.tmx_data.visible_layers:
             if hasattr(layer, 'data'):
-                # Vẽ tất cả tile (nền, tường, ...)
+                # Vẽ tất cả tile (main, background)
                 for x_val, y_val, surf in layer.tiles():
                     if surf is not None:
                         pos = (x_val * 64, y_val * 64)
                         self.Tile(pos=pos, surf=surf, groups=self.sprite_group)
                         self.tile_rect.append(pygame.Rect(x_val * 64, y_val * 64, 64, 64))
-                # Thêm collider cho layer tường
+                
+                # Thêm collider cho layer "Wall"
                 if layer.name.lower() == "wall":
-                    for x_val, y_val, surf in layer.tiles():
+                    for x_val, y_val in enumerate_tiles(layer):
                         tile_id = layer.data[y_val][x_val]
-                        if tile_id != 0:  # tile khác 0 là tường
-                            self.collider_rects.append(pygame.Rect(x_val * 64, y_val * 64, 64, 64))
+                        if tile_id != 0:  # Tile khác 0 là tường
+                            wall_rect = pygame.Rect(x_val * 64, y_val * 64, 64, 64)
+                            self.collider_rects.append(wall_rect)
 
     def drawColliders(self):
         for rect in self.collider_rects:
@@ -134,7 +114,7 @@ class Level2AI:
         ]
         
         # Set enemy speeds
-        self.set_enemy_speeds(4)
+        self.set_enemy_speeds(3)
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
         self.snake = [self.head]
         self.score = 0
@@ -145,7 +125,7 @@ class Level2AI:
         self.frame_iteration = 0
         self.visited = set()
 
-    def set_enemy_speeds(self, speed=4):
+    def set_enemy_speeds(self, speed=3):
         """Set speed cho tất cả enemies - balanced với agent speed 10"""
         for enemy in self.enemies:
             enemy.enemy_speed = speed
@@ -157,14 +137,14 @@ class Level2AI:
     def _spawn_new_food(self):
         """Spawn food theo thứ tự cố định như heat map cho Level 2 - khó hơn Level 1"""
         
-        # Danh sách food theo thứ tự tối ưu cho Level 2 (khó hơn với 12 enemies)
+        # Danh sách food theo thứ tự tối ưu cho Level 2 (heat map)
         food_sequence = [
-            (300, 460),   # Checkpoint 1 - Goal area (bắt đầu ở goal)
+            (340, 436),   # Checkpoint 1 - Goal area (bắt đầu ở goal)
             (512, 436),    # Checkpoint 2 - Middle danger zone  
             (772, 372),    # Checkpoint 3 - Navigate through enemies
-            (896, 320),    # Checkpoint 4 - High danger area
-            (914, 200),    # Checkpoint 5 - Upper safe zone
-            (1106, 200),    # Checkpoint 6 - Return to start area (harder path)
+            (896, 355),    # Checkpoint 4 - High danger area
+            (1006, 340),    # Checkpoint 5 - Upper safe zone
+            (1138, 285),    # Checkpoint 6 - Return to start area (harder path)
         ]
         
         # Lấy food theo thứ tự (score bắt đầu từ 0)
@@ -291,7 +271,6 @@ class Level2AI:
         safe_bonus = self._calculate_safe_positioning_bonus()
         reward += safe_bonus
         
-        self._update_colliders()
         self._update_ui()
         return reward, game_over, self.score
 
@@ -433,16 +412,6 @@ class Level2AI:
         """Hàm collision tổng hợp cho tương thích với code cũ"""
         return self.is_collision_wall(pt) or (pt is None and self.is_collision_enemy())
 
-    def _update_colliders(self):
-        """Cập nhật trạng thái va chạm với các collider đặc biệt của level"""
-        self.collidedtop1 = pygame.Rect.colliderect(self.head_rect, self.top1rect)
-        self.collidedleft2 = pygame.Rect.colliderect(self.head_rect, self.left2rect)
-        self.collidedtopleft = pygame.Rect.colliderect(self.head_rect, self.toprect)
-        self.collidedbottomleft = pygame.Rect.colliderect(self.head_rect, self.bottomleftrect)
-        self.collidedbot1 = pygame.Rect.colliderect(self.head_rect, self.bot1rect)
-        self.collidedbot2 = pygame.Rect.colliderect(self.head_rect, self.bot2rect)
-        self.collidedright1 = pygame.Rect.colliderect(self.head_rect, self.right1rect)
-
     def _update_ui(self):
         
         self.screen.fill("white")
@@ -451,20 +420,6 @@ class Level2AI:
         for pt in self.snake:
             pygame.draw.rect(self.screen, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.screen, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
-
-        # pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
-        # Drawing Colliders on screen
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(0, 0, 300, 320), 2) #TopLeft
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(300, 128, 768, 40), 2) #Top1
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(0, 384, 320, 50), 2) # BottomLeft
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(250, 500, 70, 20), 2) # Bot1
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(320, 505, 792, 20), 2) # Bot2
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(374, 512, 60, 70), 2) # Bot3
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(250, 200, 25, 300), 2) #Left1
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(50, 200, 256, 400), 2) #Left2
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(300, 200, 25, 300), 2) #Left3
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(1088, 384, 25, 128), 2) # Right1
-        # pygame.draw.rect(self.screen, BLACK, pygame.Rect(900, 170, 320, 30), 2) # Right2
         # Tối ưu: Move và draw tất cả enemies bằng loop
         for enemy in self.enemies:
             enemy.move2(155, 484)
@@ -497,7 +452,7 @@ class Level2AI:
         # Show frame count và difficulty indicator
         frame_text = font.render(f"Frame: {self.frame_iteration} | Difficulty: HARD", True, WHITE)
         self.screen.blit(frame_text, [0, 90])
-        
+        # pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
         pygame.display.update()
         self.clock.tick(60)
         
@@ -538,3 +493,8 @@ class Level2AI:
         frame = np.transpose(frame, (1, 0, 2))     # → (height, width, 3)
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Đúng màu cho OpenCV
         return frame
+def enumerate_tiles(layer):
+    """Helper function to enumerate tiles in a layer"""
+    for y_val, row in enumerate(layer.data):
+        for x_val, tile_id in enumerate(row):
+            yield x_val, y_val

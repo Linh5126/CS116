@@ -159,7 +159,7 @@ def open_video_file(filepath):
     else:  # Linux, ...
         subprocess.run(["xdg-open", full_path])
 
-def train2(game=Level1AI(), num_games=1000):
+def train2(game=Level2AI(), num_games=1000):
     nw=0
     plot_scores = []
     plot_mean_scores = []
