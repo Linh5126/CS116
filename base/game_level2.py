@@ -40,8 +40,8 @@ class Level2AI:
         # Spawn point và food position được tối ưu cho Level 2
         self.spawnpoint_x = 140
         self.spawnpoint_y = 275
-        self.food_x = 1102
-        self.food_y = 304
+        self.food_x = 300
+        self.food_y = 460
         # init display
         # self.display = pygame.display.set_mode((self.w, self.h))
         self.screen = pygame.display.set_mode((self.w, self.h))
@@ -139,9 +139,9 @@ class Level2AI:
         self.snake = [self.head]
         self.score = 0
         self.food = None
-        self.food_x = 1102 #340
-        self.food_y = 304
-        self._place_food()
+        self.food_x = 300 #340
+        self.food_y = 436
+        self._spawn_new_food()
         self.frame_iteration = 0
         self.visited = set()
 
@@ -154,14 +154,28 @@ class Level2AI:
         """Trả về số lượng enemies hiện tại"""
         return len(self.enemies)
 
-    def _place_food(self):
+    def _spawn_new_food(self):
+        """Spawn food theo thứ tự cố định như heat map cho Level 2 - khó hơn Level 1"""
+        
+        # Danh sách food theo thứ tự tối ưu cho Level 2 (khó hơn với 12 enemies)
+        food_sequence = [
+            (300, 460),   # Checkpoint 1 - Goal area (bắt đầu ở goal)
+            (512, 436),    # Checkpoint 2 - Middle danger zone  
+            (772, 372),    # Checkpoint 3 - Navigate through enemies
+            (896, 320),    # Checkpoint 4 - High danger area
+            (914, 200),    # Checkpoint 5 - Upper safe zone
+            (1106, 200),    # Checkpoint 6 - Return to start area (harder path)
+        ]
+        
+        # Lấy food theo thứ tự (score bắt đầu từ 0)
+        if self.score < len(food_sequence):
+            self.food_x, self.food_y = food_sequence[self.score]
+        else:
+            # Nếu vượt quá sequence, giữ ở vị trí cuối
+            self.food_x, self.food_y = food_sequence[-1]
+        
         self.food = Point(self.food_x, self.food_y)
         self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        self.food_x = 1102 #340
-        self.food_y = 304
-        
-        if self.food in self.snake:
-            self._place_food()
 
     def play_step(self, action):
         self.frame_iteration += 1
@@ -184,10 +198,10 @@ class Level2AI:
         reward = -0.05  # Phạt base cao hơn do Level 2 khó hơn với 12 enemies
         game_over = False
         
-        # Dynamic timeout dựa trên distance to food và difficulty
-        base_timeout = 1000  # Timeout base cao hơn cho Level 2
-        distance_factor = old_dist / 50.0  # Scale factor
-        max_timeout = int(base_timeout + distance_factor * 100)
+        # Timeout cho Level 2 sequential checkpoint system (khó hơn Level 1)
+        base_timeout = 2000  # Base timeout cao hơn cho Level 2 với 12 enemies
+        checkpoint_bonus = self.score * 200  # Bonus time lớn cho mỗi checkpoint (Level 2 khó hơn)
+        max_timeout = int(base_timeout + checkpoint_bonus)
         
         # Kiểm tra timeout với adaptive threshold
         if self.frame_iteration > max_timeout:
@@ -208,20 +222,33 @@ class Level2AI:
             reward = -25  # Phạt va chạm tường
             return reward, game_over, self.score
         
-        # Kiểm tra ăn food (WIN CONDITION) - với 12 enemies active
+        # SEQUENTIAL CHECKPOINT LOGIC cho Level 2 - Food xuất hiện theo thứ tự
         if self.head_rect.colliderect(self.food_rect):
-            self.score += 10
-            # Enhanced win reward cho Level 2 với 12 enemies
-            base_win_reward = 250  # Thưởng cao hơn Level 1 vì có 12 enemies
-            time_bonus = max(0, (max_timeout - self.frame_iteration) / 10)  # Thưởng hoàn thành nhanh
-            efficiency_bonus = max(0, 50 - (self.frame_iteration / 20))  # Thưởng hiệu quả
-            survival_bonus = 75  # Bonus cho việc sống sót với 12 enemies
-            total_reward = base_win_reward + time_bonus + efficiency_bonus + survival_bonus
+            self.score += 1
             
-            reward = total_reward
-            game_over = True
-            self.snake.pop()
-            return reward, game_over, self.score
+            # Checkpoint reward cho mỗi lần hoàn thành (Level 2 khó hơn)
+            checkpoint_reward = 80  # Reward cao hơn Level 1 vì có 12 enemies
+            reward += checkpoint_reward
+            
+            # Kiểm tra win condition (hoàn thành 6 checkpoints trong Level 2)
+            if self.score >= 6:
+                # WIN GAME - Đã hoàn thành tất cả checkpoints Level 2
+                self.score = 10  # Tự động đặt score = 10 khi hoàn thành Level 2
+                
+                victory_bonus = 500  # Bonus rất lớn vì Level 2 với 12 enemies
+                time_bonus = max(0, (max_timeout - self.frame_iteration) * 0.8)
+                efficiency_bonus = max(0, (1200 - self.frame_iteration) * 0.3)
+                survival_bonus = 150  # Bonus lớn cho việc sống sót với 12 enemies
+                
+                total_victory_reward = victory_bonus + time_bonus + efficiency_bonus + survival_bonus
+                reward += total_victory_reward
+                game_over = True
+                self.snake.pop()
+                return reward, game_over, self.score
+            else:
+                # Chưa hoàn thành, spawn checkpoint tiếp theo theo thứ tự
+                self._spawn_new_food()
+                self.snake.pop()
         else:
             self.snake.pop()
         
@@ -425,7 +452,7 @@ class Level2AI:
             pygame.draw.rect(self.screen, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.screen, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
 
-        pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
+        # pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
         # Drawing Colliders on screen
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(0, 0, 300, 320), 2) #TopLeft
         # pygame.draw.rect(self.screen, BLACK, pygame.Rect(300, 128, 768, 40), 2) #Top1
@@ -445,10 +472,32 @@ class Level2AI:
             enemy.draw(self.screen)
 
 
-        # Enhanced UI hiển thị thông tin game
-        text = font.render(f"Score: {self.score} | Enemies: {len(self.enemies)} | Frame: {self.frame_iteration}", True, WHITE)
+        # Enhanced UI cho Level 2 sequential checkpoint system
+        text = font.render(f"Level 2 - Checkpoint: {self.score}/6 | 12 Enemies", True, WHITE)
         self.screen.blit(text, [0, 0])
-        # pygame.time.delay(50)
+        
+        # Progress indicator cho Level 2
+        checkpoint_progress = (self.score / 6) * 100
+        progress_text = font.render(f"Level 2 Progress: {checkpoint_progress:.0f}% | Advanced Training", True, WHITE)
+        self.screen.blit(progress_text, [0, 30])
+        
+        # Current objective cho Level 2 (khó hơn Level 1)
+        if self.score < 6:
+            checkpoint_names = [
+                "Goal→Danger", "Danger→Navigate", "Navigate→High Risk", 
+                "Risk→Upper Safe", "Safe→Return", "Return→Complete"
+            ]
+            current_objective = checkpoint_names[self.score] if self.score < len(checkpoint_names) else "Complete"
+            obj_text = font.render(f"Next: {current_objective} | Enemies: {len(self.enemies)}", True, WHITE)
+            self.screen.blit(obj_text, [0, 60])
+        else:
+            complete_text = font.render("Level 2 Complete! Master Level!", True, WHITE)
+            self.screen.blit(complete_text, [0, 60])
+            
+        # Show frame count và difficulty indicator
+        frame_text = font.render(f"Frame: {self.frame_iteration} | Difficulty: HARD", True, WHITE)
+        self.screen.blit(frame_text, [0, 90])
+        
         pygame.display.update()
         self.clock.tick(60)
         

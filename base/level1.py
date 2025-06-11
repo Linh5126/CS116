@@ -26,16 +26,16 @@ class Level1:
         self.spawnpoint_x = 140
         self.spawnpoint_y = 275
         self.player = Player(self.spawnpoint_x, self.spawnpoint_y, 37, 37, 5)
-        self.enemy = Enemy(640, 285, 14, 14, True, False, False)
-        self.enemy2 = Enemy(640, 415, 14, 14, True, False, False)
-        self.enemy3 = Enemy(640, 350, 14, 14, True, False)
-        self.enemy4 = Enemy(640, 480, 14, 14, True, False)
+        self.enemy = Enemy(640, 285, 14, 14, True, False)
+        self.enemy2 = Enemy(640, 415, 14, 14, True, False)
+        self.enemy3 = Enemy(640, 350, 14, 14, True, False, False)
+        self.enemy4 = Enemy(640, 480, 14, 14, True, False, False)
         self.tile_rect = []
         self.enemyrect = pygame.Rect(self.enemy.player_x, self.enemy.player_y, 14, 14)
         self.collider_rects = []  # List of tile colliders
         self.color = (255, 0, 0)
-        self.red_rect = pygame.Rect(1050, 264, 50, 50)
-        self.red_rect.topleft = (1050, 264)
+        self.red_rect = pygame.Rect(1050, 200, 50, 50)
+        self.red_rect.topleft = (1050, 200)
         self.right_point = pygame.Rect(self.player.player_x + self.player.width, self.player.player_y + self.player.width / 2, 5, 5)
         self.right_point.topleft = (self.player.player_x + self.player.width, self.player.player_y + self.player.width)
         self.left_point = pygame.Rect(self.player.player_x -4,self.player.player_y + self.player.width / 2, 5, 5)
@@ -151,7 +151,7 @@ class Level1:
             self.enemy2.draw(self.screen)
             self.enemy3.draw(self.screen)
             self.enemy4.draw(self.screen)
-            pygame.draw.rect(self.screen, self.color, pygame.Rect(1050, 264, 60, 60), 2)
+            pygame.draw.rect(self.screen, self.color, pygame.Rect(1050, 200, 60, 60), 2)
             pygame.display.update()
 
     def run(self):

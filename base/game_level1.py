@@ -41,8 +41,8 @@ class Level1AI:
         self.spawnpoint_x = 128  # Gần entrance hơn
         self.spawnpoint_y = 256  # Aligned với corridor 
         # Optimized food position - ngắn path hơn nhưng vẫn challenging
-        self.food_x = 1106  # Gần hơn nhưng vẫn trong safe zone
-        self.food_y = 264   # Aligned với corridor
+        self.food_x = 340  # Gần hơn nhưng vẫn trong safe zone
+        self.food_y = 530   # Aligned với corridor
         
         # init display
         self.screen = pygame.display.set_mode((self.w, self.h))
@@ -100,10 +100,10 @@ class Level1AI:
     
     def reset(self):
         # init game state
-        self.enemy = Enemy(640, 285, 14, 14, True, False, False)
-        self.enemy2 = Enemy(640, 415, 14, 14, True, False, False)
-        self.enemy3 = Enemy(640, 350, 14, 14, True, False)
-        self.enemy4 = Enemy(640, 480, 14, 14, True, False)
+        self.enemy = Enemy(640, 285, 14, 14, True, False)
+        self.enemy2 = Enemy(640, 415, 14, 14, True, False)
+        self.enemy3 = Enemy(640, 350, 14, 14, True, False, False)
+        self.enemy4 = Enemy(640, 480, 14, 14, True, False, False)
         self.set_enemy_speeds()
         
         # Tất cả enemies đều active với speed = 5
@@ -112,27 +112,44 @@ class Level1AI:
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
         self.snake = [self.head]
         self.score = 0
+        self.food_x = 340 #340
+        self.food_y = 530
         self.food = None
-        self._place_food()
+        self._spawn_new_food()
         self.frame_iteration = 0
         # Reset visited positions
         self.visited = set()
         # Reset step count for this episode
         self.steps_in_episode = 0
-
-    def _place_food(self):
+    def _spawn_new_food(self):
+        """Spawn food theo thứ tự cố định như heat map để AI học đường đi tối ưu"""
+        
+        # Danh sách food theo thứ tự tối ưu (heat map path)
+        food_sequence = [
+            (340, 530),   # Checkpoint 1 - Start area
+            (340, 400),   # Checkpoint 2 - Move up  
+            (704, 320),   # Checkpoint 3 - Enter danger zone
+            (896, 320),   # Checkpoint 4 - Navigate through enemies
+            (914, 200),   # Checkpoint 5 - Safe zone
+            (1106, 200),  # Checkpoint 6 - Goal area
+        ]
+        
+        # Lấy food theo thứ tự (score bắt đầu từ 1 sau khi ăn food đầu tiên)
+        if self.score < 6 :
+            self.food_x, self.food_y = food_sequence[self.score]
+        else:
+            # Nếu vượt quá sequence, giữ ở vị trí cuối
+            self.food_x, self.food_y = food_sequence[-1]
+        
         self.food = Point(self.food_x, self.food_y)
         self.food_rect = pygame.Rect(self.food_x, self.food_y, BLOCK_SIZE, BLOCK_SIZE)
-        
-        if self.food in self.snake:
-            self._place_food()
 
     def set_enemy_speeds(self):
-        """Giảm enemy speed rất nhiều để agent dám di chuyển"""
-        self.enemy.enemy_speed = 3   # Giảm từ 2 xuống 1 - rất chậm
-        self.enemy2.enemy_speed = 3  # Giảm từ 2 xuống 1 - rất chậm
-        self.enemy3.enemy_speed = 3  # TẮT HOÀN TOÀN enemy này
-        self.enemy4.enemy_speed = 3  # TẮT HOÀN TOÀN enemy này
+        """Set tất cả enemies speed = 4 - balanced với agent speed 10"""
+        self.enemy.enemy_speed = 4
+        self.enemy2.enemy_speed = 4
+        self.enemy3.enemy_speed = 4
+        self.enemy4.enemy_speed = 4
 
     def play_step(self, action):
         self.frame_iteration += 1
@@ -152,117 +169,100 @@ class Level1AI:
         self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
         self.snake.insert(0, Point(self.head.x, self.head.y))
         
-        # ĐIỀU CHỈNH REWARD SYSTEM để khuyến khích mạo hiểm
-        reward = -0.001  # Giảm base penalty
+        # SIMPLE REWARD SYSTEM cho 4 enemies speed = 5
+        reward = -0.003  # Base penalty
         game_over = False
         
-        # Tăng timeout để cho agent nhiều thời gian hơn
-        base_timeout = 1000  # Tăng từ 800 lên 1000
-        distance_factor = old_dist / 200  
-        timeout_limit = int(base_timeout + distance_factor)
+        # Timeout cho sequential checkpoint system
+        base_timeout = 1500  # Base timeout cho 6 checkpoints
+        checkpoint_bonus = self.score * 150  # Bonus time cho mỗi checkpoint đạt được
+        timeout_limit = int(base_timeout + checkpoint_bonus)
         
         if self.frame_iteration > timeout_limit:
             game_over = True
-            reward = -20  # Tăng timeout penalty từ -15 lên -20
+            reward = -8  # Smaller timeout penalty
             return reward, game_over, self.score
         
-        # GIẢM enemy collision penalty để agent không quá sợ
+        # Enemy collision penalty - khó tránh hơn với 4 enemies
         if self.is_collision_enemy():
             game_over = True
-            reward = -3  # Giảm từ -5 xuống -3 - rất nhẹ
+            reward = -12  # Reasonable penalty cho 4 enemies
             return reward, game_over, self.score
         
         # Wall collision penalty
         if self.is_collision_wall():
             game_over = True
-            reward = -10  # Tăng wall penalty từ -8 lên -10
+            reward = -6  # Smaller wall penalty
             return reward, game_over, self.score
         
-        # WIN CONDITION - Tăng reward cho win
+        # SEQUENTIAL CHECKPOINT LOGIC - Food xuất hiện theo thứ tự như heat map
         if self.head_rect.colliderect(self.food_rect):
-            self.score += 10
-            base_reward = 500  # TĂNG MỚI từ 300 lên 500 - rất cao
-            time_bonus = max(0, (timeout_limit - self.frame_iteration) * 0.5)
-            efficiency_bonus = max(0, (800 - self.steps_in_episode) * 0.2)
-            survival_bonus = 150  # Tăng từ 100 lên 150
+            self.score += 1
             
-            total_reward = base_reward + time_bonus + efficiency_bonus + survival_bonus
-            reward = total_reward
-            game_over = True
-            self.snake.pop()
-            return reward, game_over, self.score
+            # Checkpoint reward cho mỗi lần hoàn thành
+            checkpoint_reward = 60  # Reward cho mỗi checkpoint
+            reward += checkpoint_reward
+            
+            # Kiểm tra win condition (hoàn thành 6 checkpoints)
+            if self.score >= 6:
+                # WIN GAME - Đã hoàn thành tất cả checkpoints
+                
+                victory_bonus = 350  # Bonus lớn khi hoàn thành path
+                time_bonus = max(0, (timeout_limit - self.frame_iteration) * 0.6)
+                efficiency_bonus = max(0, (900 - self.steps_in_episode) * 0.25)
+                
+                total_victory_reward = victory_bonus + time_bonus + efficiency_bonus
+                reward += total_victory_reward
+                game_over = True
+                self.snake.pop()
+                return reward, game_over, 10
+            else:
+                # Chưa hoàn thành, spawn checkpoint tiếp theo theo thứ tự
+                self._spawn_new_food()
+                self.snake.pop()
         else:
             self.snake.pop()
         
-        # TĂNG DISTANCE-BASED REWARDS để khuyến khích tiến lên
+        # ENHANCED DISTANCE-BASED REWARDS
         new_dist = math.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
         
-        # Reward mạnh hơn khi tiến gần food
+        # Progress rewards
         if new_dist < old_dist:
             progress_ratio = (old_dist - new_dist) / max(old_dist, 1)
-            progress_reward = progress_ratio * 15.0  # TĂNG MỚI từ 10.0 lên 15.0
+            progress_reward = progress_ratio * 6.0  # Good signal
             reward += progress_reward
         else:
             retreat_ratio = (new_dist - old_dist) / max(old_dist, 1)
-            retreat_penalty = retreat_ratio * 3.0  # Tăng penalty khi lùi từ 2.0 lên 3.0
+            retreat_penalty = retreat_ratio * 1.0  # Mild penalty
             reward -= retreat_penalty
         
-        # PENALTY MẠNH KHI Ở SAFE ZONE QUÁ LÂU
-        if self.head.x < 300:  # Safe zone (màu xanh)
-            # Progressive penalty - tăng dần theo thời gian
-            base_penalty = -0.5  # Tăng từ -0.1 lên -0.5
-            time_multiplier = min(3.0, self.frame_iteration / 200)  # Penalty tăng dần
-            safe_zone_penalty = base_penalty * time_multiplier
-            
-            # Penalty cực mạnh sau 200 frames
-            if self.frame_iteration > 200:
-                safe_zone_penalty = -2.0  # Penalty rất mạnh
-            if self.frame_iteration > 400:
-                safe_zone_penalty = -5.0  # Penalty cực mạnh
-                
-            reward += safe_zone_penalty
-        
-        # BONUS LỚN KHI TIẾN VÀO DANGER ZONE
-        if 300 <= self.head.x <= 900:  # Danger zone
-            courage_bonus = 2.0  # TĂNG MỚI từ 1.0 lên 2.0
-            # Bonus thêm dựa trên độ xa từ safe zone
-            distance_from_safe = self.head.x - 300
-            extra_courage = min(3.0, distance_from_safe / 200)  # Bonus thêm tối đa 3.0
-            reward += courage_bonus + extra_courage
-        
-        # BONUS CỰC LỚN KHI ĐẾN GẦN FOOD
-        food_distance = math.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
-        if food_distance < 200:  # Trong bán kính 200px từ food
-            proximity_bonus = (200 - food_distance) / 200 * 5.0  # Bonus tối đa 5.0
-            reward += proximity_bonus
-        
-        # EXPLORATION SYSTEM với bonus cao hơn
-        grid_size = 60  # Giảm từ 80 xuống 60 để encourage explore nhiều hơn
+        # EXPLORATION SYSTEM - encouraging smart paths
+        grid_size = 100  
         pos_key = (int(self.head.x / grid_size), int(self.head.y / grid_size))
         
         if not hasattr(self, 'visited'):
             self.visited = set()
             
         if pos_key not in self.visited:
-            exploration_bonus = 2.0  # TĂNG MỚI từ 1.5 lên 2.0
+            exploration_bonus = 0.8  # Fixed exploration bonus
             reward += exploration_bonus
             self.visited.add(pos_key)
         
-        # ENHANCED CHECKPOINT REWARDS với bonus cao hơn
+        # ENHANCED CHECKPOINT REWARDS cho 4 enemies
         checkpoint_bonus = self._get_checkpoint_bonus()
         reward += checkpoint_bonus
         
-        # Penalty cho staying still
+        # Strong penalty cho staying still
         if self.head == old_head:
-            reward -= 8.0  # TĂNG MỚI từ 5.0 lên 8.0 - buộc phải di chuyển
+            reward -= 4.0
         
-        # Anti-oscillation với penalty nhẹ hơn
+        # SIMPLIFIED anti-oscillation
         self._track_movement_pattern()
         if hasattr(self, 'movement_history') and len(self.movement_history) >= 4:
             if self._is_simple_oscillating():
-                reward -= 0.5  # Giảm từ 1.0 xuống 0.5
+                reward -= 2.5
         
-        # Enemy proximity awareness với bonus cao hơn nhưng không quá strict
+        # ENHANCED enemy proximity awareness cho 4 enemies
         enemy_bonus = self._get_enemy_awareness_bonus()
         reward += enemy_bonus
         
@@ -270,57 +270,60 @@ class Level1AI:
         return reward, game_over, self.score
 
     def _get_checkpoint_bonus(self):
-        """TĂNG MỚI checkpoint bonus để khuyến khích tiến lên mạnh mẽ"""
+        """Reward cho reaching key map areas - với 4 enemies active"""
         x, y = self.head.x, self.head.y
         
-        # TĂNG MẠNH tất cả checkpoint bonus
+        # Checkpoint areas trong map - khó hơn vì có 4 enemies
         if 300 <= x <= 500 and 200 <= y <= 500:  # Entered main corridor
-            return 8.0  # TĂNG MỚI từ 3.0 lên 8.0
+            return 1.0  # Increased bonus vì có 4 enemies
         elif 500 <= x <= 750 and 200 <= y <= 500:  # Middle danger zone
-            return 15.0  # TĂNG MỚI từ 5.0 lên 15.0
+            return 2.0  # Bonus lớn vì đây là danger zone 
         elif 750 <= x <= 950 and 200 <= y <= 500:  # Past enemies zone
-            return 25.0  # TĂNG MỚI từ 8.0 lên 25.0
+            return 3.0  # Bonus rất lớn vì đã qua zone enemies
         elif 950 <= x <= 1200 and 150 <= y <= 350:  # Goal area
-            return 40.0  # TĂNG MỚI từ 12.0 lên 40.0
+            return 5.0  # Bonus lớn nhất
         
         return 0.0
 
     def _get_enemy_awareness_bonus(self):
-        """Điều chỉnh enemy awareness để rất nới lỏng"""
+        """Enhanced bonus cho smart enemy avoidance - với 4 enemies"""
         if not hasattr(self, 'active_enemies'):
             return 0.0
             
-        # Chỉ tính enemies đang hoạt động
-        active_enemies = [e for e in self.active_enemies if e.enemy_speed > 0]
-        
-        if not active_enemies:
-            return 1.0  # Bonus khi không có enemy active
-            
-        # Calculate distances to active enemies only
+        # Calculate distances to all active enemies
         enemy_distances = []
-        for enemy in active_enemies:
+        for enemy in self.active_enemies:
             enemy_dist = math.sqrt((self.head.x - enemy.rect2.centerx)**2 + 
                                  (self.head.y - enemy.rect2.centery)**2)
             enemy_distances.append(enemy_dist)
         
         if not enemy_distances:
-            return 1.0
+            return 0.0
         
         min_enemy_dist = min(enemy_distances)
+        avg_enemy_dist = sum(enemy_distances) / len(enemy_distances)
         
-        # RẤT NỚI LỎNG yêu cầu về khoảng cách an toàn
+        # ENHANCED DANGER AWARENESS với 4 enemies
         bonus = 0.0
         
-        # Chỉ penalty khi RẤT gần enemy
-        if min_enemy_dist >= 40:  # Giảm từ 60 xuống 40
-            bonus += 0.2  # Bonus nhỏ
-        elif min_enemy_dist < 20:  # Chỉ penalty khi sát enemy
-            bonus -= 0.3  # Penalty rất nhẹ
+        # Reward for maintaining safe minimum distance
+        if min_enemy_dist >= 80:  # Safe from closest enemy
+            bonus += 0.4
+        elif min_enemy_dist >= 60:  # Reasonable distance
+            bonus += 0.2
+        elif min_enemy_dist < 40:  # Too close to any enemy
+            bonus -= 1.5  # Strong penalty
         
-        # Bonus khi đi qua enemy zone
-        enemy_zone_x = 600 <= self.head.x <= 700
-        if enemy_zone_x and min_enemy_dist >= 30:  # Giảm yêu cầu từ 50 xuống 30
-            bonus += 1.5  # Tăng bonus từ 1.0 lên 1.5
+        # Bonus for good average distance from all enemies
+        if avg_enemy_dist >= 100:
+            bonus += 0.3
+        elif avg_enemy_dist >= 80:
+            bonus += 0.1
+        
+        # Extra bonus for navigating through enemy zone safely
+        enemy_zone_x = 600 <= self.head.x <= 700  # Main enemy zone
+        if enemy_zone_x and min_enemy_dist >= 70:
+            bonus += 0.5  # Navigating safely through danger zone
         
         return bonus
 
@@ -419,7 +422,7 @@ class Level1AI:
             pygame.draw.rect(self.screen, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
 
         # Draw food
-        pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
+        # pygame.draw.rect(self.screen, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
         
         # Draw and move ALL 4 ENEMIES với optimized patterns
         self.enemy.move(345, 935)
@@ -431,14 +434,24 @@ class Level1AI:
         self.enemy3.draw(self.screen)
         self.enemy4.draw(self.screen)
        
-        # Simple UI 
-        text = font.render(f"Score: {self.score} | Steps: {self.steps_in_episode} | 4 Fast Enemies", True, WHITE)
+        # UI cho sequential checkpoint system
+        text = font.render(f"Checkpoint: {self.score}/6 | Steps: {self.steps_in_episode}", True, WHITE)
         self.screen.blit(text, [0, 0])
         
-        # Progress indicator
-        progress = min(100, (self.frame_iteration / 650) * 100)
-        progress_text = font.render(f"Progress: {progress:.1f}%", True, WHITE)
+        # Progress indicator based on checkpoint sequence
+        checkpoint_progress = (self.score / 6) * 100
+        progress_text = font.render(f"Path Progress: {checkpoint_progress:.0f}% | Sequential Training", True, WHITE)
         self.screen.blit(progress_text, [0, 30])
+        
+        # Current objective
+        if self.score < 6:
+            checkpoint_names = ["Start→Up", "Up→Center", "Center→Danger", "Danger→Through", "Through→Safe", "Safe→Goal"]
+            current_objective = checkpoint_names[self.score] if self.score < len(checkpoint_names) else "Complete"
+            obj_text = font.render(f"Next: {current_objective}", True, WHITE)
+            self.screen.blit(obj_text, [0, 60])
+        else:
+            complete_text = font.render("Path Complete! Victory!", True, WHITE)
+            self.screen.blit(complete_text, [0, 60])
         
         pygame.display.update()
         self.clock.tick(60)

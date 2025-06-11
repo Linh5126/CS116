@@ -13,27 +13,15 @@ def plot(scores, mean_scores, a = '', nw=0, save_path=None):
     plt.clf()
     plt.title(a)
     plt.xlabel('Number of Games')
-    
-    # Dynamically set Y-axis label based on title
-    if 'Reward' in a:
-        plt.ylabel('Reward')
-    else:
-        plt.ylabel('Score')
-    
-    plt.plot(scores, label='Episode Values')
-    plt.plot(mean_scores, label='Mean Values')
-    
-    # Remove ylim constraint for rewards (can be negative)
-    if 'Reward' not in a:
-        plt.ylim(ymin=0)
-    
-    plt.text(len(scores)-1, scores[-1], f'{scores[-1]:.1f}')
-    plt.text(len(mean_scores)-1, mean_scores[-1], f'{mean_scores[-1]:.1f}')
+    plt.ylabel('Score')
+    plt.plot(scores)
+    plt.plot(mean_scores)
+    plt.ylim(ymin=0)
+    plt.text(len(scores)-1, scores[-1], str(scores[-1]))
+    plt.text(len(mean_scores)-1, mean_scores[-1], str(mean_scores[-1]))
     if nw is not None:
         plt.text(0.02, 0.95, f"number_game_win: {nw}", transform=plt.gca().transAxes,
                  fontsize=10, color='black', bbox=dict(facecolor='white', alpha=0.5))
-    plt.legend()
-    plt.grid(True, alpha=0.3)
     plt.show()
     plt.pause(.1)
     if save_path:
@@ -49,12 +37,11 @@ def plot_dual_mean_scores(mean_scores_dqn, mean_scores_ddqn, total_dqn=0, total_
     plt.figure(figsize=(10, 6))
     plt.title("DQN vs Double DQN")
     plt.xlabel("Number of Games")
-    plt.ylabel("Reward")
+    plt.ylabel("Score")
 
     plt.plot(mean_scores_dqn, label=f"{label1} (Total Wins: {total_dqn})", color='blue')
     plt.plot(mean_scores_ddqn, label=f"{label2} (Total Wins: {total_ddqn})", color='green')
-    # Remove ylim constraint for rewards (can be negative)
-    # plt.ylim(ymin=0)  # Commented out to allow negative rewards
+    plt.ylim(ymin=0)
 
     # Thêm text ở góc trên trái
     plt.text(0.01, 0.95,
