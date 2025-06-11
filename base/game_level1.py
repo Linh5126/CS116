@@ -42,7 +42,7 @@ class Level1AI:
         self.spawnpoint_y = 256  # Aligned với corridor 
         # Optimized food position - ngắn path hơn nhưng vẫn challenging
         self.food_x = 1106  # Gần hơn nhưng vẫn trong safe zone
-        self.food_y = 200   # Aligned với corridor
+        self.food_y = 264   # Aligned với corridor
         
         # init display
         self.screen = pygame.display.set_mode((self.w, self.h))
@@ -100,10 +100,10 @@ class Level1AI:
     
     def reset(self):
         # init game state
-        self.enemy = Enemy(640, 285, 14, 14, True, False)
-        self.enemy2 = Enemy(640, 415, 14, 14, True, False)
-        self.enemy3 = Enemy(640, 350, 14, 14, True, False, False)
-        self.enemy4 = Enemy(640, 480, 14, 14, True, False, False)
+        self.enemy = Enemy(640, 285, 14, 14, True, False, False)
+        self.enemy2 = Enemy(640, 415, 14, 14, True, False, False)
+        self.enemy3 = Enemy(640, 350, 14, 14, True, False)
+        self.enemy4 = Enemy(640, 480, 14, 14, True, False)
         self.set_enemy_speeds()
         
         # Tất cả enemies đều active với speed = 5
@@ -128,11 +128,11 @@ class Level1AI:
             self._place_food()
 
     def set_enemy_speeds(self):
-        """Set tất cả enemies speed = 4 - balanced với agent speed 10"""
-        self.enemy.enemy_speed = 4
-        self.enemy2.enemy_speed = 4
-        self.enemy3.enemy_speed = 4
-        self.enemy4.enemy_speed = 4
+        """Giảm enemy speed rất nhiều để agent dám di chuyển"""
+        self.enemy.enemy_speed = 3   # Giảm từ 2 xuống 1 - rất chậm
+        self.enemy2.enemy_speed = 3  # Giảm từ 2 xuống 1 - rất chậm
+        self.enemy3.enemy_speed = 3  # TẮT HOÀN TOÀN enemy này
+        self.enemy4.enemy_speed = 3  # TẮT HOÀN TOÀN enemy này
 
     def play_step(self, action):
         self.frame_iteration += 1
@@ -152,40 +152,39 @@ class Level1AI:
         self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
         self.snake.insert(0, Point(self.head.x, self.head.y))
         
-        # SIMPLE REWARD SYSTEM cho 4 enemies speed = 5
-        reward = -0.003  # Base penalty
+        # ĐIỀU CHỈNH REWARD SYSTEM để khuyến khích mạo hiểm
+        reward = -0.001  # Giảm base penalty
         game_over = False
         
-        # Fixed timeout cho single difficulty
-        base_timeout = 650  # Fixed timeout
+        # Tăng timeout để cho agent nhiều thời gian hơn
+        base_timeout = 1000  # Tăng từ 800 lên 1000
         distance_factor = old_dist / 200  
         timeout_limit = int(base_timeout + distance_factor)
         
         if self.frame_iteration > timeout_limit:
             game_over = True
-            reward = -8  # Smaller timeout penalty
+            reward = -20  # Tăng timeout penalty từ -15 lên -20
             return reward, game_over, self.score
         
-        # Enemy collision penalty - khó tránh hơn với 4 enemies
+        # GIẢM enemy collision penalty để agent không quá sợ
         if self.is_collision_enemy():
             game_over = True
-            reward = -12  # Reasonable penalty cho 4 enemies
+            reward = -3  # Giảm từ -5 xuống -3 - rất nhẹ
             return reward, game_over, self.score
         
         # Wall collision penalty
         if self.is_collision_wall():
             game_over = True
-            reward = -6  # Smaller wall penalty
+            reward = -10  # Tăng wall penalty từ -8 lên -10
             return reward, game_over, self.score
         
-        # WIN CONDITION - Fixed bonus cho 4 enemies speed = 5
+        # WIN CONDITION - Tăng reward cho win
         if self.head_rect.colliderect(self.food_rect):
             self.score += 10
-            # SIMPLE WIN REWARDS
-            base_reward = 200  # Fixed large reward
-            time_bonus = max(0, (timeout_limit - self.frame_iteration) * 0.2)
-            efficiency_bonus = max(0, (600 - self.steps_in_episode) * 0.1)
-            survival_bonus = 50  # Bonus for surviving 4 fast enemies
+            base_reward = 500  # TĂNG MỚI từ 300 lên 500 - rất cao
+            time_bonus = max(0, (timeout_limit - self.frame_iteration) * 0.5)
+            efficiency_bonus = max(0, (800 - self.steps_in_episode) * 0.2)
+            survival_bonus = 150  # Tăng từ 100 lên 150
             
             total_reward = base_reward + time_bonus + efficiency_bonus + survival_bonus
             reward = total_reward
@@ -195,46 +194,75 @@ class Level1AI:
         else:
             self.snake.pop()
         
-        # ENHANCED DISTANCE-BASED REWARDS
+        # TĂNG DISTANCE-BASED REWARDS để khuyến khích tiến lên
         new_dist = math.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
         
-        # Progress rewards
+        # Reward mạnh hơn khi tiến gần food
         if new_dist < old_dist:
             progress_ratio = (old_dist - new_dist) / max(old_dist, 1)
-            progress_reward = progress_ratio * 6.0  # Good signal
+            progress_reward = progress_ratio * 15.0  # TĂNG MỚI từ 10.0 lên 15.0
             reward += progress_reward
         else:
             retreat_ratio = (new_dist - old_dist) / max(old_dist, 1)
-            retreat_penalty = retreat_ratio * 1.0  # Mild penalty
+            retreat_penalty = retreat_ratio * 3.0  # Tăng penalty khi lùi từ 2.0 lên 3.0
             reward -= retreat_penalty
         
-        # EXPLORATION SYSTEM - encouraging smart paths
-        grid_size = 100  
+        # PENALTY MẠNH KHI Ở SAFE ZONE QUÁ LÂU
+        if self.head.x < 300:  # Safe zone (màu xanh)
+            # Progressive penalty - tăng dần theo thời gian
+            base_penalty = -0.5  # Tăng từ -0.1 lên -0.5
+            time_multiplier = min(3.0, self.frame_iteration / 200)  # Penalty tăng dần
+            safe_zone_penalty = base_penalty * time_multiplier
+            
+            # Penalty cực mạnh sau 200 frames
+            if self.frame_iteration > 200:
+                safe_zone_penalty = -2.0  # Penalty rất mạnh
+            if self.frame_iteration > 400:
+                safe_zone_penalty = -5.0  # Penalty cực mạnh
+                
+            reward += safe_zone_penalty
+        
+        # BONUS LỚN KHI TIẾN VÀO DANGER ZONE
+        if 300 <= self.head.x <= 900:  # Danger zone
+            courage_bonus = 2.0  # TĂNG MỚI từ 1.0 lên 2.0
+            # Bonus thêm dựa trên độ xa từ safe zone
+            distance_from_safe = self.head.x - 300
+            extra_courage = min(3.0, distance_from_safe / 200)  # Bonus thêm tối đa 3.0
+            reward += courage_bonus + extra_courage
+        
+        # BONUS CỰC LỚN KHI ĐẾN GẦN FOOD
+        food_distance = math.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
+        if food_distance < 200:  # Trong bán kính 200px từ food
+            proximity_bonus = (200 - food_distance) / 200 * 5.0  # Bonus tối đa 5.0
+            reward += proximity_bonus
+        
+        # EXPLORATION SYSTEM với bonus cao hơn
+        grid_size = 60  # Giảm từ 80 xuống 60 để encourage explore nhiều hơn
         pos_key = (int(self.head.x / grid_size), int(self.head.y / grid_size))
         
         if not hasattr(self, 'visited'):
             self.visited = set()
             
         if pos_key not in self.visited:
-            exploration_bonus = 0.8  # Fixed exploration bonus
+            exploration_bonus = 2.0  # TĂNG MỚI từ 1.5 lên 2.0
             reward += exploration_bonus
             self.visited.add(pos_key)
         
-        # ENHANCED CHECKPOINT REWARDS cho 4 enemies
+        # ENHANCED CHECKPOINT REWARDS với bonus cao hơn
         checkpoint_bonus = self._get_checkpoint_bonus()
         reward += checkpoint_bonus
         
-        # Strong penalty cho staying still
+        # Penalty cho staying still
         if self.head == old_head:
-            reward -= 4.0
+            reward -= 8.0  # TĂNG MỚI từ 5.0 lên 8.0 - buộc phải di chuyển
         
-        # SIMPLIFIED anti-oscillation
+        # Anti-oscillation với penalty nhẹ hơn
         self._track_movement_pattern()
         if hasattr(self, 'movement_history') and len(self.movement_history) >= 4:
             if self._is_simple_oscillating():
-                reward -= 2.5
+                reward -= 0.5  # Giảm từ 1.0 xuống 0.5
         
-        # ENHANCED enemy proximity awareness cho 4 enemies
+        # Enemy proximity awareness với bonus cao hơn nhưng không quá strict
         enemy_bonus = self._get_enemy_awareness_bonus()
         reward += enemy_bonus
         
@@ -242,60 +270,57 @@ class Level1AI:
         return reward, game_over, self.score
 
     def _get_checkpoint_bonus(self):
-        """Reward cho reaching key map areas - với 4 enemies active"""
+        """TĂNG MỚI checkpoint bonus để khuyến khích tiến lên mạnh mẽ"""
         x, y = self.head.x, self.head.y
         
-        # Checkpoint areas trong map - khó hơn vì có 4 enemies
+        # TĂNG MẠNH tất cả checkpoint bonus
         if 300 <= x <= 500 and 200 <= y <= 500:  # Entered main corridor
-            return 1.0  # Increased bonus vì có 4 enemies
+            return 8.0  # TĂNG MỚI từ 3.0 lên 8.0
         elif 500 <= x <= 750 and 200 <= y <= 500:  # Middle danger zone
-            return 2.0  # Bonus lớn vì đây là danger zone 
+            return 15.0  # TĂNG MỚI từ 5.0 lên 15.0
         elif 750 <= x <= 950 and 200 <= y <= 500:  # Past enemies zone
-            return 3.0  # Bonus rất lớn vì đã qua zone enemies
+            return 25.0  # TĂNG MỚI từ 8.0 lên 25.0
         elif 950 <= x <= 1200 and 150 <= y <= 350:  # Goal area
-            return 5.0  # Bonus lớn nhất
+            return 40.0  # TĂNG MỚI từ 12.0 lên 40.0
         
         return 0.0
 
     def _get_enemy_awareness_bonus(self):
-        """Enhanced bonus cho smart enemy avoidance - với 4 enemies"""
+        """Điều chỉnh enemy awareness để rất nới lỏng"""
         if not hasattr(self, 'active_enemies'):
             return 0.0
             
-        # Calculate distances to all active enemies
+        # Chỉ tính enemies đang hoạt động
+        active_enemies = [e for e in self.active_enemies if e.enemy_speed > 0]
+        
+        if not active_enemies:
+            return 1.0  # Bonus khi không có enemy active
+            
+        # Calculate distances to active enemies only
         enemy_distances = []
-        for enemy in self.active_enemies:
+        for enemy in active_enemies:
             enemy_dist = math.sqrt((self.head.x - enemy.rect2.centerx)**2 + 
                                  (self.head.y - enemy.rect2.centery)**2)
             enemy_distances.append(enemy_dist)
         
         if not enemy_distances:
-            return 0.0
+            return 1.0
         
         min_enemy_dist = min(enemy_distances)
-        avg_enemy_dist = sum(enemy_distances) / len(enemy_distances)
         
-        # ENHANCED DANGER AWARENESS với 4 enemies
+        # RẤT NỚI LỎNG yêu cầu về khoảng cách an toàn
         bonus = 0.0
         
-        # Reward for maintaining safe minimum distance
-        if min_enemy_dist >= 80:  # Safe from closest enemy
-            bonus += 0.4
-        elif min_enemy_dist >= 60:  # Reasonable distance
-            bonus += 0.2
-        elif min_enemy_dist < 40:  # Too close to any enemy
-            bonus -= 1.5  # Strong penalty
+        # Chỉ penalty khi RẤT gần enemy
+        if min_enemy_dist >= 40:  # Giảm từ 60 xuống 40
+            bonus += 0.2  # Bonus nhỏ
+        elif min_enemy_dist < 20:  # Chỉ penalty khi sát enemy
+            bonus -= 0.3  # Penalty rất nhẹ
         
-        # Bonus for good average distance from all enemies
-        if avg_enemy_dist >= 100:
-            bonus += 0.3
-        elif avg_enemy_dist >= 80:
-            bonus += 0.1
-        
-        # Extra bonus for navigating through enemy zone safely
-        enemy_zone_x = 600 <= self.head.x <= 700  # Main enemy zone
-        if enemy_zone_x and min_enemy_dist >= 70:
-            bonus += 0.5  # Navigating safely through danger zone
+        # Bonus khi đi qua enemy zone
+        enemy_zone_x = 600 <= self.head.x <= 700
+        if enemy_zone_x and min_enemy_dist >= 30:  # Giảm yêu cầu từ 50 xuống 30
+            bonus += 1.5  # Tăng bonus từ 1.0 lên 1.5
         
         return bonus
 
