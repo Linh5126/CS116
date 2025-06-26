@@ -422,6 +422,7 @@ class Level3AI:
         self.clock.tick(60)
 
     def _move(self, action):
+<<<<<<< HEAD
         # [right, left, up, down] - FIXED to match advanced_trainer.py!
         action_dirs = [Direction.RIGHT, Direction.LEFT, Direction.UP, Direction.DOWN]
         if np.array_equal(action, [1, 0, 0, 0]):
@@ -432,6 +433,18 @@ class Level3AI:
             new_dir = action_dirs[2] # UP (FIXED!)
         elif np.array_equal(action, [0, 0, 0, 1]):
             new_dir = action_dirs[3] # DOWN (FIXED!)
+=======
+        # [right, down, left, up]
+        clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
+        if np.array_equal(action, [1, 0, 0, 0]):
+            new_dir = clock_wise[0] # right
+        elif np.array_equal(action, [0, 1, 0, 0]):
+            new_dir = clock_wise[1] # down
+        elif np.array_equal(action, [0, 0, 1, 0]):
+            new_dir = clock_wise[2] # left
+        elif np.array_equal(action, [0, 0, 0, 1]):
+            new_dir = clock_wise[3] # up
+>>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
             
         self.direction = new_dir
 

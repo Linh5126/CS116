@@ -39,7 +39,11 @@ class Level1AI:
         self.h = h
         # Optimized spawn point - gần hơn với main corridor
         self.spawnpoint_x = 128  # Gần entrance hơn
+<<<<<<< HEAD
         self.spawnpoint_y = 530  # Aligned với corridor 
+=======
+        self.spawnpoint_y = 256  # Aligned với corridor 
+>>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
         # Optimized food position - ngắn path hơn nhưng vẫn challenging
         self.food_x = 340  # Gần hơn nhưng vẫn trong safe zone
         self.food_y = 530   # Aligned với corridor
@@ -215,7 +219,11 @@ class Level1AI:
                 reward += total_victory_reward
                 game_over = True
                 self.snake.pop()
+<<<<<<< HEAD
                 return reward, game_over, self.score
+=======
+                return reward, game_over, 10
+>>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
             else:
                 # Chưa hoàn thành, spawn checkpoint tiếp theo theo thứ tự
                 self._spawn_new_food()
@@ -252,9 +260,15 @@ class Level1AI:
         checkpoint_bonus = self._get_checkpoint_bonus()
         reward += checkpoint_bonus
         
+<<<<<<< HEAD
         # Mild penalty cho staying still
         if self.head == old_head:
             reward -= 4.0  # Nhẹ hơn 4x!
+=======
+        # Strong penalty cho staying still
+        if self.head == old_head:
+            reward -= 4.0
+>>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
         
         # SIMPLIFIED anti-oscillation
         self._track_movement_pattern()
