@@ -38,17 +38,10 @@ class Level2AI:
         self.w = w
         self.h = h
         # Spawn point và food position được tối ưu cho Level 2
-<<<<<<< HEAD
         self.spawnpoint_x = 260
         self.spawnpoint_y = 332
         self.food_x = 300
         self.food_y = 404
-=======
-        self.spawnpoint_x = 140
-        self.spawnpoint_y = 275
-        self.food_x = 350
-        self.food_y = 272
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
         # init display
         # self.display = pygame.display.set_mode((self.w, self.h))
         self.screen = pygame.display.set_mode((self.w, self.h))
@@ -121,11 +114,7 @@ class Level2AI:
         ]
         
         # Set enemy speeds
-<<<<<<< HEAD
         self.set_enemy_speeds(2)
-=======
-        self.set_enemy_speeds(3)
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
         self.head = Point(self.spawnpoint_x, self.spawnpoint_y)
         self.snake = [self.head]
         self.score = 0
@@ -136,11 +125,7 @@ class Level2AI:
         self.frame_iteration = 0
         self.visited = set()
 
-<<<<<<< HEAD
     def set_enemy_speeds(self, speed=2):
-=======
-    def set_enemy_speeds(self, speed=3):
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
         """Set speed cho tất cả enemies - balanced với agent speed 10"""
         for enemy in self.enemies:
             enemy.enemy_speed = speed
@@ -154,11 +139,7 @@ class Level2AI:
         
         # Danh sách food theo thứ tự tối ưu cho Level 2 (heat map)
         food_sequence = [
-<<<<<<< HEAD
             (340, 404),   # Checkpoint 1 - Goal area (bắt đầu ở goal)
-=======
-            (340, 436),   # Checkpoint 1 - Goal area (bắt đầu ở goal)
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
             (512, 436),    # Checkpoint 2 - Middle danger zone  
             (772, 372),    # Checkpoint 3 - Navigate through enemies
             (896, 355),    # Checkpoint 4 - High danger area
@@ -193,21 +174,12 @@ class Level2AI:
         self.head_rect = pygame.Rect(self.head.x, self.head.y, BLOCK_SIZE, BLOCK_SIZE)
         self.snake.insert(0, Point(self.head.x, self.head.y))
         
-<<<<<<< HEAD
         # SIMPLIFIED reward system cho Level 2 - dễ học hơn
         reward = -0.001  # Phạt base nhẹ hơn để AI dễ học
         game_over = False
         
         # Timeout cho Level 2 sequential checkpoint system (khó hơn Level 1)
         base_timeout = 3000  # Base timeout cao hơn cho Level 2 với 12 enemies
-=======
-        # Enhanced reward system cho Level 2 với 12 enemies speed = 5
-        reward = -0.05  # Phạt base cao hơn do Level 2 khó hơn với 12 enemies
-        game_over = False
-        
-        # Timeout cho Level 2 sequential checkpoint system (khó hơn Level 1)
-        base_timeout = 2000  # Base timeout cao hơn cho Level 2 với 12 enemies
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
         checkpoint_bonus = self.score * 200  # Bonus time lớn cho mỗi checkpoint (Level 2 khó hơn)
         max_timeout = int(base_timeout + checkpoint_bonus)
         
@@ -221,11 +193,7 @@ class Level2AI:
         enemy_collision, min_enemy_dist = self._check_enemy_collision_with_distance()
         if enemy_collision:
             game_over = True
-<<<<<<< HEAD
             reward = -20  # Phạt va chạm enemy rất nặng cho Level 2 với 12 enemies
-=======
-            reward = -50  # Phạt va chạm enemy rất nặng cho Level 2 với 12 enemies
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
             return reward, game_over, self.score
         
         # Kiểm tra va chạm tường
@@ -238,23 +206,14 @@ class Level2AI:
         if self.head_rect.colliderect(self.food_rect):
             self.score += 1
             
-<<<<<<< HEAD
             # MASSIVE reward cho mỗi checkpoint để AI học nhanh
             checkpoint_reward = 100  # Reward rất cao để AI ưu tiên ăn food
-=======
-            # Checkpoint reward cho mỗi lần hoàn thành (Level 2 khó hơn)
-            checkpoint_reward = 80  # Reward cao hơn Level 1 vì có 12 enemies
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
             reward += checkpoint_reward
             
             # Kiểm tra win condition (hoàn thành 6 checkpoints trong Level 2)
             if self.score >= 6:
                 # WIN GAME - Đã hoàn thành tất cả checkpoints Level 2
-<<<<<<< HEAD
                 self.score = 6
-=======
-                self.score = 10  # Tự động đặt score = 10 khi hoàn thành Level 2
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
                 
                 victory_bonus = 500  # Bonus rất lớn vì Level 2 với 12 enemies
                 time_bonus = max(0, (max_timeout - self.frame_iteration) * 0.8)
@@ -276,21 +235,12 @@ class Level2AI:
         # Progressive movement rewards
         new_dist = math.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
         
-<<<<<<< HEAD
         # SIMPLIFIED distance-based reward
         if new_dist < old_dist:
             progress_reward = min(5.0, (old_dist - new_dist) / 10.0)  # Thưởng tiến bộ cao hơn
             reward += progress_reward
         else:
             retreat_penalty = -min(0.5, (new_dist - old_dist) / 50.0)  # Phạt lùi lại nhẹ hơn
-=======
-        # Distance-based reward (scaled for Level 2)
-        if new_dist < old_dist:
-            progress_reward = min(1.5, (old_dist - new_dist) / 20.0)  # Thưởng tiến bộ
-            reward += progress_reward
-        else:
-            retreat_penalty = -min(1.0, (new_dist - old_dist) / 25.0)  # Phạt lùi lại
->>>>>>> 650bc2ed31d1fded9cd84a9dc89e68b26516b1d4
             reward += retreat_penalty
         
         # Enhanced exploration reward cho Level 2
