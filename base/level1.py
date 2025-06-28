@@ -23,8 +23,8 @@ class Level1:
         self.sprite_group = pygame.sprite.Group()
         self.islevel1 = True
         self.is_running = True
-        self.spawnpoint_x = 140
-        self.spawnpoint_y = 275
+        self.spawnpoint_x = 128
+        self.spawnpoint_y = 530
         self.player = Player(self.spawnpoint_x, self.spawnpoint_y, 37, 37, 5)
         self.enemy = Enemy(640, 285, 14, 14, True, False)
         self.enemy2 = Enemy(640, 415, 14, 14, True, False)

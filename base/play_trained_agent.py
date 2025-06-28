@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from advanced_trainer import AdvancedAgent
+from advanced_trainer_fixed import AdvancedAgent
 from game_level1 import Level1AI
 from game_level2 import Level2AI
 from game_level3 import Level3AI

@@ -1,0 +1,10 @@
+{
+  "best_win_rate": 0.36,
+  "best_model_episode": 10000,
+  "algorithm": "DQN",
+  "level_name": "Level1",
+  "timestamp": "2025-06-28T19:20:29.261997",
+  "avg_score": 3.7,
+  "games_won": 18,
+  "total_games": 50
+}
